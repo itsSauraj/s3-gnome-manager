@@ -57,6 +57,7 @@ export default function ListView({
         return (
           <div
             key={item.key}
+            title={item.name}
             className={`
               flex items-center gap-3 px-3 py-1.5 cursor-pointer
               ${isSelected
@@ -73,7 +74,7 @@ export default function ListView({
             }}
           >
             {getFileIcon(item.name, item.type === 'folder', 20)}
-            <span className="flex-1 text-sm text-[var(--gnome-text-primary)]">
+            <span className="flex-1 text-sm text-[var(--gnome-text-primary)] truncate min-w-0" title={item.name}>
               {item.name}
             </span>
             <span className="text-xs text-[var(--gnome-text-secondary)] w-24 text-right">

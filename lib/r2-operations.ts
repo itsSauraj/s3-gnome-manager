@@ -85,14 +85,22 @@ export class R2Operations {
     });
 
     const response = await client.send(command);
-    const stream = response.Body as ReadableStream;
-    const chunks: Uint8Array[] = [];
 
-    const reader = stream.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
+    // Convert stream to buffer
+    const stream = response.Body;
+    if (!stream) {
+      throw new Error("No response body");
+    }
+
+    // Handle different stream types
+    if (Buffer.isBuffer(stream)) {
+      return stream;
+    }
+
+    // For Node.js Readable streams
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of stream as any) {
+      chunks.push(chunk);
     }
 
     return Buffer.concat(chunks);

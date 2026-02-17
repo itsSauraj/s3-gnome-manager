@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Plus, Trash2, Edit, Copy } from 'lucide-react';
 import { CredentialsManager, type BucketConfig } from '@/lib/credentials';
+import ConfirmDialog from './ConfirmDialog';
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<{ bucketId: string; bucketName: string } | null>(null);
 
   if (!isOpen) return null;
 
@@ -120,11 +122,16 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
     setError('');
   };
 
-  const handleRemoveBucket = (bucketId: string) => {
-    if (confirm('Remove this storage connection?')) {
-      CredentialsManager.removeBucket(bucketId);
+  const handleRemoveBucket = (bucketId: string, bucketName: string) => {
+    setConfirmDelete({ bucketId, bucketName });
+  };
+
+  const confirmRemoveBucket = () => {
+    if (confirmDelete) {
+      CredentialsManager.removeBucket(confirmDelete.bucketId);
       setBuckets(CredentialsManager.getBuckets());
       onCredentialsUpdate();
+      setConfirmDelete(null);
     }
   };
 
@@ -165,7 +172,7 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
                     <Copy size={16} />
                   </button>
                   <button
-                    onClick={() => handleRemoveBucket(bucket.id)}
+                    onClick={() => handleRemoveBucket(bucket.id, bucket.name)}
                     className="gnome-button-icon text-red-500"
                     title="Remove"
                   >
@@ -287,6 +294,18 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
           </button>
         </div>
       </div>
+
+      {/* Confirm Delete Dialog */}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Remove Storage Connection"
+          message={`Are you sure you want to remove "${confirmDelete.bucketName}"? This will only remove the connection from this app, not delete any data.`}
+          type="danger"
+          confirmText="Remove"
+          onConfirm={confirmRemoveBucket}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }

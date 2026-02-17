@@ -15,6 +15,10 @@ import GridView from "./views/GridView";
 import ListView from "./views/ListView";
 import SettingsDialog from "./SettingsDialog";
 import LoadingSpinner from "./LoadingSpinner";
+import UploadProgressBar, { type UploadItem } from "./UploadProgressBar";
+import UploadConfirmDialog from "./UploadConfirmDialog";
+import ConfirmDialog from "./ConfirmDialog";
+import InputDialog from "./InputDialog";
 import {
   Upload,
   FolderPlus,
@@ -58,8 +62,28 @@ export default function EnhancedFileExplorer() {
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [showUploadConfirm, setShowUploadConfirm] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([]);
+  const [showUploadProgress, setShowUploadProgress] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    type?: "info" | "warning" | "danger" | "success";
+    confirmText?: string;
+    onConfirm: () => void;
+  } | null>(null);
+  const [inputDialog, setInputDialog] = useState<{
+    title: string;
+    message: string;
+    placeholder?: string;
+    defaultValue?: string;
+    onConfirm: (value: string) => void;
+  } | null>(null);
   const fileListRef = useRef<HTMLDivElement>(null);
   const isNavigatingRef = useRef(false);
+  const uploadAbortControllers = useRef<Map<string, AbortController>>(new Map());
 
   const showMessage = (type: "success" | "error" | "info", text: string) => {
     setMessage({ type, text });
@@ -414,49 +438,62 @@ export default function EnhancedFileExplorer() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (selectedItems.size === 0) return;
-    if (!confirm(`Delete ${selectedItems.size} item(s)?`)) return;
 
-    try {
-      const headers = CredentialsManager.getHeaders();
-      const deletePromises = Array.from(selectedItems).map((key) =>
-        fetch(`/api/files?key=${encodeURIComponent(key)}`, { method: "DELETE", headers })
-      );
+    setConfirmDialog({
+      title: "Delete Items",
+      message: `Are you sure you want to delete ${selectedItems.size} item(s)? This action cannot be undone.`,
+      type: "danger",
+      confirmText: "Delete",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const headers = CredentialsManager.getHeaders();
+          const deletePromises = Array.from(selectedItems).map((key) =>
+            fetch(`/api/files?key=${encodeURIComponent(key)}`, { method: "DELETE", headers })
+          );
 
-      await Promise.all(deletePromises);
-      showMessage("success", `Deleted ${selectedItems.size} item(s)`);
-      setSelectedItems(new Set());
-      await loadAllFiles();
-    } catch (error) {
-      showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
-    }
+          await Promise.all(deletePromises);
+          showMessage("success", `Deleted ${selectedItems.size} item(s)`);
+          setSelectedItems(new Set());
+          await loadAllFiles();
+        } catch (error) {
+          showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
+        }
+      },
+    });
   };
 
-  const handleCreateFolder = async () => {
-    const folderName = prompt("Folder name:");
-    if (!folderName) return;
+  const handleCreateFolder = () => {
+    setInputDialog({
+      title: "New Folder",
+      message: "Enter folder name:",
+      placeholder: "Folder name",
+      onConfirm: async (folderName) => {
+        setInputDialog(null);
+        try {
+          const key = currentPath ? `${currentPath}/${folderName}/.keep` : `${folderName}/.keep`;
+          const formData = new FormData();
+          formData.append("file", new Blob([""]), ".keep");
+          formData.append("key", key);
 
-    try {
-      const key = currentPath ? `${currentPath}/${folderName}/.keep` : `${folderName}/.keep`;
-      const formData = new FormData();
-      formData.append("file", new Blob([""]), ".keep");
-      formData.append("key", key);
+          const headers = CredentialsManager.getHeaders();
+          const response = await fetch("/api/files", {
+            method: "POST",
+            headers,
+            body: formData,
+          });
 
-      const headers = CredentialsManager.getHeaders();
-      const response = await fetch("/api/files", {
-        method: "POST",
-        headers,
-        body: formData,
-      });
+          if (!response.ok) throw new Error("Failed");
 
-      if (!response.ok) throw new Error("Failed");
-
-      showMessage("success", "Folder created");
-      await loadAllFiles();
-    } catch (error) {
-      showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
-    }
+          showMessage("success", "Folder created");
+          await loadAllFiles();
+        } catch (error) {
+          showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
+        }
+      },
+    });
   };
 
   const handleDownload = async (key: string) => {
@@ -481,11 +518,151 @@ export default function EnhancedFileExplorer() {
     }
   };
 
-  const handleLogout = () => {
-    if (confirm("Logout and clear credentials?")) {
-      CredentialsManager.remove();
-      window.location.reload();
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      setPendingFiles(files);
+      setShowUploadConfirm(true);
     }
+  };
+
+  const handleUploadConfirm = () => {
+    setShowUploadConfirm(false);
+    startUploads(pendingFiles);
+    setPendingFiles([]);
+  };
+
+  const handleUploadCancel = () => {
+    setShowUploadConfirm(false);
+    setPendingFiles([]);
+  };
+
+  const startUploads = async (files: File[]) => {
+    const newUploads: UploadItem[] = files.map((file) => ({
+      id: `${Date.now()}-${Math.random()}`,
+      file,
+      status: "pending" as const,
+      progress: 0,
+    }));
+
+    setUploadQueue((prev) => [...prev, ...newUploads]);
+    setShowUploadProgress(true);
+
+    // Process uploads sequentially
+    for (const upload of newUploads) {
+      await processUpload(upload);
+    }
+
+    // Send notification when all done
+    sendUploadNotification(newUploads.length);
+  };
+
+  const processUpload = async (upload: UploadItem) => {
+    const abortController = new AbortController();
+    uploadAbortControllers.current.set(upload.id, abortController);
+
+    setUploadQueue((prev) =>
+      prev.map((u) => (u.id === upload.id ? { ...u, status: "uploading" as const } : u))
+    );
+
+    try {
+      const formData = new FormData();
+      formData.append("file", upload.file);
+      const key = currentPath ? `${currentPath}/${upload.file.name}` : upload.file.name;
+      formData.append("key", key);
+
+      const headers = CredentialsManager.getHeaders();
+      const response = await fetch("/api/files", {
+        method: "POST",
+        headers,
+        body: formData,
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) throw new Error("Upload failed");
+
+      setUploadQueue((prev) =>
+        prev.map((u) =>
+          u.id === upload.id ? { ...u, status: "completed" as const, progress: 100 } : u
+        )
+      );
+
+      await loadAllFiles();
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        setUploadQueue((prev) => prev.filter((u) => u.id !== upload.id));
+      } else {
+        setUploadQueue((prev) =>
+          prev.map((u) =>
+            u.id === upload.id
+              ? {
+                  ...u,
+                  status: "error" as const,
+                  error: error instanceof Error ? error.message : "Upload failed",
+                }
+              : u
+          )
+        );
+      }
+    } finally {
+      uploadAbortControllers.current.delete(upload.id);
+    }
+  };
+
+  const cancelUpload = (id: string) => {
+    const controller = uploadAbortControllers.current.get(id);
+    if (controller) {
+      controller.abort();
+    }
+  };
+
+  const sendUploadNotification = (count: number) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Upload Complete", {
+        body: `Successfully uploaded ${count} file${count > 1 ? "s" : ""}`,
+        icon: "/favicon.ico",
+      });
+    } else if ("Notification" in window && Notification.permission !== "denied") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          new Notification("Upload Complete", {
+            body: `Successfully uploaded ${count} file${count > 1 ? "s" : ""}`,
+            icon: "/favicon.ico",
+          });
+        }
+      });
+    }
+  };
+
+  const handleLogout = () => {
+    setConfirmDialog({
+      title: "Logout",
+      message: "Are you sure you want to logout and clear all credentials?",
+      type: "warning",
+      confirmText: "Logout",
+      onConfirm: () => {
+        setConfirmDialog(null);
+        CredentialsManager.remove();
+        window.location.reload();
+      },
+    });
   };
 
   const handleBucketChange = (bucketId: string) => {
@@ -663,7 +840,21 @@ export default function EnhancedFileExplorer() {
           onBucketChange={handleBucketChange}
           onOpenSettings={() => setShowSettings(true)}
         />
-        <main className="flex-1 overflow-y-auto" onContextMenu={(e) => handleContextMenu(e)}>
+        <main
+          className="flex-1 overflow-y-auto relative"
+          onContextMenu={(e) => handleContextMenu(e)}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {/* Drag overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 bg-[var(--gnome-accent-blue)]/10 border-4 border-dashed border-[var(--gnome-accent-blue)] z-40 flex items-center justify-center">
+              <div className="text-lg font-medium text-[var(--gnome-accent-blue)]">
+                Drop files to upload
+              </div>
+            </div>
+          )}
           {message && (
             <div className={`mx-4 mt-4 p-3 rounded border text-sm ${
               message.type === "success" ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800" :
@@ -765,6 +956,74 @@ export default function EnhancedFileExplorer() {
           y={contextMenu.y}
           items={getContextMenuItems()}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Upload Confirmation Dialog */}
+      {showUploadConfirm && (
+        <UploadConfirmDialog
+          files={pendingFiles}
+          currentPath={currentPath}
+          onConfirm={handleUploadConfirm}
+          onCancel={handleUploadCancel}
+        />
+      )}
+
+      {/* Upload Progress Bar */}
+      {showUploadProgress && (
+        <UploadProgressBar
+          uploads={uploadQueue}
+          onClose={() => {
+            const hasActive = uploadQueue.some(
+              (u) => u.status === "pending" || u.status === "uploading"
+            );
+            if (!hasActive) {
+              setShowUploadProgress(false);
+              setUploadQueue([]);
+            } else {
+              setConfirmDialog({
+                title: "Cancel Uploads",
+                message: "There are active uploads in progress. Do you want to cancel all uploads?",
+                type: "warning",
+                confirmText: "Cancel All",
+                onConfirm: () => {
+                  setConfirmDialog(null);
+                  uploadQueue.forEach((u) => {
+                    if (u.status === "pending" || u.status === "uploading") {
+                      cancelUpload(u.id);
+                    }
+                  });
+                  setShowUploadProgress(false);
+                  setUploadQueue([]);
+                },
+              });
+            }
+          }}
+          onCancel={cancelUpload}
+        />
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          type={confirmDialog.type}
+          confirmText={confirmDialog.confirmText}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
+
+      {/* Input Dialog */}
+      {inputDialog && (
+        <InputDialog
+          title={inputDialog.title}
+          message={inputDialog.message}
+          placeholder={inputDialog.placeholder}
+          defaultValue={inputDialog.defaultValue}
+          onConfirm={inputDialog.onConfirm}
+          onCancel={() => setInputDialog(null)}
         />
       )}
     </div>

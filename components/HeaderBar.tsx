@@ -88,7 +88,9 @@ export default function HeaderBar({
       <div className="flex border border-[var(--gnome-border)] rounded">
         <button
           className={`gnome-button-icon ${
-            viewMode === 'list' ? 'bg-[var(--gnome-bg-selected)]' : ''
+            viewMode === 'list'
+              ? 'bg-[var(--gnome-accent-blue)] text-white'
+              : 'hover:bg-[var(--gnome-bg-hover)]'
           }`}
           onClick={() => onViewModeChange('list')}
           title="List view"
@@ -97,7 +99,9 @@ export default function HeaderBar({
         </button>
         <button
           className={`gnome-button-icon ${
-            viewMode === 'grid' ? 'bg-[var(--gnome-bg-selected)]' : ''
+            viewMode === 'grid'
+              ? 'bg-[var(--gnome-accent-blue)] text-white'
+              : 'hover:bg-[var(--gnome-bg-hover)]'
           }`}
           onClick={() => onViewModeChange('grid')}
           title="Grid view"

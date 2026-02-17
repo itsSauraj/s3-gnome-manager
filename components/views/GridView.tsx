@@ -60,6 +60,7 @@ export default function GridView({
         return (
           <div
             key={item.key}
+            title={item.name}
             className={`
               flex flex-col items-center gap-2 p-2 rounded cursor-pointer
               ${isSelected
@@ -76,7 +77,7 @@ export default function GridView({
             }}
           >
             {getFileIcon(item.name, item.type === 'folder', 48)}
-            <span className="text-xs text-center break-words w-full text-[var(--gnome-text-primary)]">
+            <span className="text-xs text-center w-full text-[var(--gnome-text-primary)] truncate" title={item.name}>
               {item.name}
             </span>
           </div>
