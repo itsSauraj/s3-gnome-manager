@@ -15,11 +15,22 @@ export interface BucketConfig {
   id: string;
   name: string;
   credentials: R2Credentials;
+  customTitle?: string; // User-defined display name
+  color?: string; // Hex color for the bucket
+  groupId?: string; // ID of the group this bucket belongs to
+}
+
+export interface BucketGroup {
+  id: string;
+  name: string;
+  color?: string;
+  order: number;
 }
 
 const STORAGE_KEY = "r2_credentials";
 const BUCKETS_KEY = "r2_buckets";
 const CURRENT_BUCKET_KEY = "r2_current_bucket";
+const GROUPS_KEY = "r2_bucket_groups";
 
 export class CredentialsManager {
   // Legacy single-bucket support
@@ -140,5 +151,89 @@ export class CredentialsManager {
 
   static setCurrentBucket(bucketId: string): void {
     localStorage.setItem(CURRENT_BUCKET_KEY, bucketId);
+  }
+
+  // Group management
+  static getGroups(): BucketGroup[] {
+    try {
+      const stored = localStorage.getItem(GROUPS_KEY);
+      if (!stored) return [];
+      return JSON.parse(stored);
+    } catch (error) {
+      console.error("Failed to load groups:", error);
+      return [];
+    }
+  }
+
+  static addGroup(group: BucketGroup): void {
+    try {
+      const groups = this.getGroups();
+      const existingIndex = groups.findIndex((g) => g.id === group.id);
+      if (existingIndex >= 0) {
+        groups[existingIndex] = group;
+      } else {
+        groups.push(group);
+      }
+      localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+    } catch (error) {
+      console.error("Failed to add group:", error);
+    }
+  }
+
+  static removeGroup(groupId: string): void {
+    try {
+      const groups = this.getGroups().filter((g) => g.id !== groupId);
+      localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+
+      // Remove group assignment from buckets
+      const buckets = this.getBuckets();
+      buckets.forEach((bucket) => {
+        if (bucket.groupId === groupId) {
+          bucket.groupId = undefined;
+        }
+      });
+      localStorage.setItem(BUCKETS_KEY, JSON.stringify(buckets));
+    } catch (error) {
+      console.error("Failed to remove group:", error);
+    }
+  }
+
+  static updateBucketGroup(bucketId: string, groupId: string | undefined): void {
+    try {
+      const buckets = this.getBuckets();
+      const bucket = buckets.find((b) => b.id === bucketId);
+      if (bucket) {
+        bucket.groupId = groupId;
+        localStorage.setItem(BUCKETS_KEY, JSON.stringify(buckets));
+      }
+    } catch (error) {
+      console.error("Failed to update bucket group:", error);
+    }
+  }
+
+  static updateBucketColor(bucketId: string, color: string): void {
+    try {
+      const buckets = this.getBuckets();
+      const bucket = buckets.find((b) => b.id === bucketId);
+      if (bucket) {
+        bucket.color = color;
+        localStorage.setItem(BUCKETS_KEY, JSON.stringify(buckets));
+      }
+    } catch (error) {
+      console.error("Failed to update bucket color:", error);
+    }
+  }
+
+  static updateBucketTitle(bucketId: string, customTitle: string): void {
+    try {
+      const buckets = this.getBuckets();
+      const bucket = buckets.find((b) => b.id === bucketId);
+      if (bucket) {
+        bucket.customTitle = customTitle;
+        localStorage.setItem(BUCKETS_KEY, JSON.stringify(buckets));
+      }
+    } catch (error) {
+      console.error("Failed to update bucket title:", error);
+    }
   }
 }

@@ -1,36 +1,332 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# R2 Explorer
+
+A modern, feature-rich file manager for Cloudflare R2 storage, built with Next.js 16 and designed with GNOME Files (Nautilus) aesthetics.
+
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black.svg)
+![React](https://img.shields.io/badge/React-19.2.3-blue.svg)
+
+## Features
+
+### 🎨 Modern UI
+- **GNOME-inspired Design**: Flat, minimal aesthetic matching Ubuntu's GNOME Files
+- **VS Code Material Icons**: 100+ file type icons with smart color coding
+- **Dark/Light Theme**: Seamless theme switching with next-themes
+- **Responsive Layout**: Header, sidebar, and main content area
+
+### 📁 File Management
+- **Multiple View Modes**: Grid and List views with toggle
+- **Drag & Drop Upload**: Multi-file upload with Google Drive-style progress tracking
+- **File Operations**: Copy, Cut, Paste, Delete, Rename, Download
+- **Folder Operations**: Create folders, navigate folder structure
+- **Context Menus**: Right-click menus for quick actions
+- **Keyboard Shortcuts**:
+  - `Ctrl+C` / `Cmd+C`: Copy
+  - `Ctrl+X` / `Cmd+X`: Cut
+  - `Ctrl+V` / `Cmd+V`: Paste
+  - `Ctrl+A` / `Cmd+A`: Select all
+  - `Delete`: Delete selected items
+  - `F2`: Rename
+  - `Escape`: Clear selection
+
+### 🪣 Bucket Management
+- **Multiple Buckets**: Connect to multiple R2 buckets
+- **Bucket Groups**: Organize buckets into Chrome-style groups
+- **Custom Bucket Colors**: Color-code your buckets
+- **Custom Bucket Titles**: Rename buckets for display
+- **Quick Bucket Switching**: `Ctrl+1` through `Ctrl+9` shortcuts
+- **Bucket Context Menu**:
+  - Edit Title
+  - Choose Color
+  - Move to Group
+  - Create New Group
+  - Remove from Group
+  - Eject (disconnect)
+
+### 🗂️ Group Management
+- **Visual Groups**: Chrome-style tab grouping for buckets
+- **Group Colors**: Color-code groups
+- **Drag & Drop**: Drag buckets into groups
+- **Group Context Menu**:
+  - Rename Group
+  - Change Color
+  - Delete Group
+
+### 🚀 Advanced Features
+- **Browser Navigation**: Full back/forward support with URL persistence
+- **Upload Progress**: Real-time upload tracking with status indicators
+- **Browser Notifications**: Upload completion notifications
+- **Multi-select**: Select multiple files/folders for batch operations
+- **Custom Modals**: GNOME-styled dialogs for all confirmations
+- **Persistent State**: All settings saved to localStorage
+
+## Tech Stack
+
+- **Framework**: Next.js 16.1.6 (App Router)
+- **React**: 19.2.3
+- **TypeScript**: 5.x
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React (Material Design style)
+- **Theme**: next-themes
+- **Storage**: Cloudflare R2 (S3-compatible)
+- **SDK**: AWS SDK v3
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ or Bun
+- Cloudflare R2 account with:
+  - R2 bucket(s)
+  - Access Key ID
+  - Secret Access Key
+  - R2 endpoint URL
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd r2
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+bun install
+```
+
+3. Run the development server:
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
 # or
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### First-Time Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. On first launch, you'll see the login screen
+2. Click "Add Storage Connection"
+3. Enter your R2 credentials:
+   - **Connection Name**: A friendly name for this bucket
+   - **R2 Endpoint**: Your R2 endpoint URL (e.g., `https://xxxxx.r2.cloudflarestorage.com`)
+   - **Access Key ID**: Your R2 access key
+   - **Secret Access Key**: Your R2 secret key
+   - **Bucket Name**: The name of your R2 bucket
+4. Click "Add Connection" to test and save
+5. Start managing your files!
 
-## Learn More
+## Usage Guide
 
-To learn more about Next.js, take a look at the following resources:
+### Managing Files
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Upload Files:**
+- Click "Upload File" button in the header
+- Or drag and drop files directly into the main area
+- Multiple files supported
+- Progress tracking for each file
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Create Folders:**
+- Click "New Folder" button
+- Or right-click in empty space → "New Folder"
+- Enter folder name and confirm
 
-## Deploy on Vercel
+**Copy/Move Files:**
+1. Select file(s)
+2. Press `Ctrl+C` to copy or `Ctrl+X` to cut
+3. Navigate to destination folder
+4. Press `Ctrl+V` to paste
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Delete Files:**
+- Select file(s) and press `Delete`
+- Or right-click → "Delete"
+- Confirm deletion
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Download Files:**
+- Right-click on a file → "Download"
+
+**Rename Files:**
+- Select a single file and press `F2`
+- Or right-click → "Rename"
+
+### Managing Buckets
+
+**Add New Bucket:**
+1. Click "Settings" in the sidebar
+2. Click "Add Storage Connection"
+3. Enter credentials and test connection
+4. Save
+
+**Switch Buckets:**
+- Click on bucket in sidebar
+- Or use `Ctrl+1` through `Ctrl+9` for first 9 buckets
+
+**Organize with Groups:**
+1. Right-click on a bucket
+2. Select "Move to Group" → Choose group
+3. Or "Create New Group" to make a new group
+
+**Customize Buckets:**
+- Right-click bucket → "Edit Title" for custom name
+- Right-click bucket → "Choose Color" for color coding
+
+**Manage Groups:**
+- Right-click on group header
+- Rename, change color, or delete group
+
+### Navigation
+
+**Browse Folders:**
+- Double-click folders to navigate into them
+- Use browser back/forward buttons
+- Click "Home" button to return to root
+
+**Path Persistence:**
+- Current path is saved in URL
+- Browser back/forward fully supported
+- Navigation history per bucket
+
+## Project Structure
+
+```
+r2/
+├── app/
+│   ├── api/                    # API routes for R2 operations
+│   │   └── files/             # File operations endpoints
+│   ├── globals.css            # GNOME theme CSS variables
+│   ├── layout.tsx             # Root layout with theme provider
+│   └── page.tsx               # Main page
+├── components/
+│   ├── views/                 # View components
+│   │   ├── GridView.tsx       # Grid layout view
+│   │   ├── ListView.tsx       # List layout view
+│   │   └── TreeView.tsx       # Tree view (VS Code style)
+│   ├── icons/                 # Icon components
+│   │   └── FolderIcon.tsx     # Custom folder icon
+│   ├── ColorPicker.tsx        # Color selection dialog
+│   ├── ConfirmDialog.tsx      # Confirmation modal
+│   ├── ContextMenu.tsx        # Right-click context menu
+│   ├── EnhancedFileExplorer.tsx    # Main file explorer
+│   ├── EnhancedSidebar.tsx    # Bucket sidebar with groups
+│   ├── FileIcons.tsx          # Legacy icon system
+│   ├── FileOperationsModal.tsx     # File operations dialog
+│   ├── HeaderBar.tsx          # Top navigation bar
+│   ├── InputDialog.tsx        # Text input modal
+│   ├── LoadingSpinner.tsx     # Loading indicator
+│   ├── LoginScreen.tsx        # Initial login/setup screen
+│   ├── MaterialFileIcons.tsx  # VS Code Material Icons
+│   ├── SettingsDialog.tsx     # Settings/bucket management
+│   ├── ThemeProvider.tsx      # Theme context provider
+│   ├── UploadConfirmDialog.tsx     # Upload confirmation
+│   └── UploadProgressBar.tsx  # Upload progress tracker
+├── lib/
+│   ├── credentials.ts         # Bucket credentials manager
+│   ├── file-utils.ts          # File utility functions
+│   ├── navigation-history.ts  # Browser navigation manager
+│   ├── r2-operations.ts       # R2 SDK operations
+│   └── types.ts              # TypeScript type definitions
+└── public/                    # Static assets
+```
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env.local` file (optional - credentials are managed in-app):
+
+```env
+# Optional: Default theme
+NEXT_PUBLIC_DEFAULT_THEME=light
+```
+
+### Theme Customization
+
+Edit `app/globals.css` to customize GNOME theme colors:
+
+```css
+:root {
+  --gnome-bg-primary: #ffffff;
+  --gnome-bg-sidebar: #f6f5f4;
+  --gnome-accent-blue: #3584e4;
+  /* ... more variables */
+}
+
+.dark {
+  --gnome-bg-primary: #242424;
+  /* ... dark theme colors */
+}
+```
+
+## Development
+
+### Build for Production
+
+```bash
+npm run build
+npm run start
+```
+
+### Linting
+
+```bash
+npm run lint
+```
+
+### Type Checking
+
+```bash
+npx tsc --noEmit
+```
+
+## Security Notes
+
+- **Credentials Storage**: All credentials are stored in browser localStorage
+- **Client-Side Only**: Credentials never leave the browser
+- **No Backend**: Direct connection to R2 from client
+- **Private Data**: Never commit credentials or .env files
+
+## Browser Support
+
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+- Opera 76+
+
+## Known Limitations
+
+- Maximum 10,000 files per bucket (R2 API limit)
+- No server-side operations
+- Credentials stored in browser localStorage
+- No user authentication system
+
+## Roadmap
+
+- [ ] Tree view with expandable folders (VS Code style)
+- [ ] File search functionality
+- [ ] Batch operations UI
+- [ ] File preview support
+- [ ] Keyboard navigation enhancements
+- [ ] Custom theme builder
+- [ ] Export/import bucket configurations
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Acknowledgments
+
+- **Design**: Inspired by GNOME Files (Nautilus)
+- **Icons**: Based on VS Code Material Icon Theme
+- **Framework**: Built with Next.js and React
+- **Storage**: Powered by Cloudflare R2
+
+---
+
+**Built with ❤️ using Next.js and Cloudflare R2**

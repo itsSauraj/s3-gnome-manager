@@ -2,7 +2,7 @@
 
 import type { FileMetadata } from "@/lib/types";
 import { formatFileSize } from "@/lib/file-utils";
-import { getFileIcon } from "../FileIcons";
+import MaterialFileIcon from "../MaterialFileIcons";
 
 interface FileItem extends FileMetadata {
   type: "file" | "folder";
@@ -73,7 +73,7 @@ export default function ListView({
               onContextMenu(e, item);
             }}
           >
-            {getFileIcon(item.name, item.type === 'folder', 20)}
+            <MaterialFileIcon fileName={item.name} isFolder={item.type === 'folder'} size={20} />
             <span className="flex-1 text-sm text-[var(--gnome-text-primary)] truncate min-w-0" title={item.name}>
               {item.name}
             </span>

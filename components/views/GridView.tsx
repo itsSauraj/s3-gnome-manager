@@ -2,7 +2,7 @@
 
 import type { FileMetadata } from "@/lib/types";
 import { formatFileSize } from "@/lib/file-utils";
-import { getFileIcon } from "../FileIcons";
+import MaterialFileIcon from "../MaterialFileIcons";
 
 interface FileItem extends FileMetadata {
   type: "file" | "folder";
@@ -76,7 +76,7 @@ export default function GridView({
               onContextMenu(e, item);
             }}
           >
-            {getFileIcon(item.name, item.type === 'folder', 48)}
+            <MaterialFileIcon fileName={item.name} isFolder={item.type === 'folder'} size={48} />
             <span className="text-xs text-center w-full text-[var(--gnome-text-primary)] truncate" title={item.name}>
               {item.name}
             </span>

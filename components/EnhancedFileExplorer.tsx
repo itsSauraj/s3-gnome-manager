@@ -10,7 +10,7 @@ import FileOperationsModal from "./FileOperationsModal";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { getFileIcon } from "./FileIcons";
 import HeaderBar from "./HeaderBar";
-import Sidebar from "./Sidebar";
+import EnhancedSidebar from "./EnhancedSidebar";
 import GridView from "./views/GridView";
 import ListView from "./views/ListView";
 import SettingsDialog from "./SettingsDialog";
@@ -110,6 +110,22 @@ export default function EnhancedFileExplorer() {
       showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBucketUpdate = () => {
+    const updatedBuckets = CredentialsManager.getBuckets();
+    setBuckets(updatedBuckets);
+
+    // If current bucket was ejected, switch to first available bucket or logout
+    if (currentBucket && !updatedBuckets.find((b) => b.id === currentBucket)) {
+      if (updatedBuckets.length > 0) {
+        setCurrentBucket(updatedBuckets[0].id);
+        CredentialsManager.setCurrentBucket(updatedBuckets[0].id);
+      } else {
+        CredentialsManager.remove();
+        window.location.reload();
+      }
     }
   };
 
@@ -834,11 +850,12 @@ export default function EnhancedFileExplorer() {
         canGoForward={canGoForward}
       />
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar
+        <EnhancedSidebar
           buckets={buckets}
           currentBucket={currentBucket}
           onBucketChange={handleBucketChange}
           onOpenSettings={() => setShowSettings(true)}
+          onBucketUpdate={handleBucketUpdate}
         />
         <main
           className="flex-1 overflow-y-auto relative"
@@ -900,7 +917,10 @@ export default function EnhancedFileExplorer() {
         <SettingsDialog
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
-          onCredentialsUpdate={loadAllFiles}
+          onCredentialsUpdate={() => {
+            handleBucketUpdate();
+            loadAllFiles();
+          }}
         />
       )}
 
