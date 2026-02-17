@@ -140,7 +140,7 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
       <div className="bg-[var(--gnome-bg-primary)] rounded w-[600px] max-h-[80vh] flex flex-col border border-[var(--gnome-border)] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--gnome-border)]">
-          <h2 className="text-base font-medium text-[var(--gnome-text-primary)]">R2 Storage Settings</h2>
+          <h2 className="text-base font-medium text-[var(--gnome-text-primary)]">S3 Storage Settings</h2>
           <button onClick={onClose} className="gnome-button-icon">
             <X size={18} />
           </button>
@@ -223,11 +223,11 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium mb-1 text-[var(--gnome-text-primary)]">R2 Endpoint</label>
+                  <label className="block text-xs font-medium mb-1 text-[var(--gnome-text-primary)]">S3 Endpoint URL</label>
                   <input
                     type="text"
                     className="w-full px-3 py-1.5 bg-[var(--gnome-bg-primary)] border border-[var(--gnome-border)] rounded text-sm text-[var(--gnome-text-primary)]"
-                    placeholder="https://xxxxx.r2.cloudflarestorage.com"
+                    placeholder="https://s3.amazonaws.com or https://xxxxx.r2.cloudflarestorage.com"
                     value={formData.endpoint}
                     onChange={(e) => setFormData({ ...formData, endpoint: e.target.value })}
                   />

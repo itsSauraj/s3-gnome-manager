@@ -10,7 +10,8 @@ const ubuntu = Ubuntu({
 });
 
 export const metadata: Metadata = {
-  title: "R2 Explorer",
+  title: "S3 Explorer",
+  description: "A modern file manager for Amazon S3 and S3-compatible storage services",
 };
 
 export default function RootLayout({

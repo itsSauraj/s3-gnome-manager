@@ -49,17 +49,6 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     }
   };
 
-  const handleLoadFromEnv = async () => {
-    try {
-      const response = await fetch("/api/files/env-credentials");
-      if (response.ok) {
-        const envCreds = await response.json();
-        setCredentials(envCreds);
-      }
-    } catch (error) {
-      console.error("Failed to load env credentials:", error);
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--gnome-bg-primary)]">
@@ -84,10 +73,10 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               </svg>
             </div>
             <h1 className="text-2xl font-semibold text-[var(--gnome-text-primary)] mb-2">
-              Welcome to R2 Explorer
+              Welcome to S3 Explorer
             </h1>
             <p className="text-[var(--gnome-text-secondary)] text-sm">
-              Connect your Cloudflare R2 storage
+              Connect your S3-compatible storage
             </p>
           </div>
 
@@ -115,12 +104,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-[var(--gnome-text-primary)] mb-2">
-                R2 Endpoint
+                S3 Endpoint URL
               </label>
               <input
                 type="text"
                 className="w-full"
-                placeholder="https://xxxxx.r2.cloudflarestorage.com"
+                placeholder="https://s3.amazonaws.com or https://xxxxx.r2.cloudflarestorage.com"
                 value={credentials.endpoint}
                 onChange={(e) =>
                   setCredentials({ ...credentials, endpoint: e.target.value })
@@ -203,16 +192,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                   Connecting...
                 </span>
               ) : (
-                "Connect to R2"
+                "Connect to S3"
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleLoadFromEnv}
-              className="gnome-button w-full text-sm text-[var(--gnome-text-secondary)]"
-            >
-              Load from environment variables
             </button>
           </form>
 
@@ -240,7 +221,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
         {/* Footer Text */}
         <p className="text-center mt-6 text-sm text-[var(--gnome-text-secondary)]">
-          Powered by Cloudflare R2
+          Powered by AWS S3 SDK
         </p>
       </div>
     </div>

@@ -1,6 +1,6 @@
-# R2 Explorer
+# S3 Explorer
 
-A modern, feature-rich file manager for Cloudflare R2 storage, built with Next.js 16 and designed with GNOME Files (Nautilus) aesthetics.
+A modern, feature-rich file manager for Amazon S3 and any S3-compatible storage (Cloudflare R2, MinIO, DigitalOcean Spaces, etc.), built with Next.js 16 and designed with GNOME Files (Nautilus) aesthetics.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black.svg)
@@ -30,7 +30,7 @@ A modern, feature-rich file manager for Cloudflare R2 storage, built with Next.j
   - `Escape`: Clear selection
 
 ### 🪣 Bucket Management
-- **Multiple Buckets**: Connect to multiple R2 buckets
+- **Multiple Buckets**: Connect to multiple S3 buckets
 - **Bucket Groups**: Organize buckets into Chrome-style groups
 - **Custom Bucket Colors**: Color-code your buckets
 - **Custom Bucket Titles**: Rename buckets for display
@@ -68,7 +68,7 @@ A modern, feature-rich file manager for Cloudflare R2 storage, built with Next.j
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React (Material Design style)
 - **Theme**: next-themes
-- **Storage**: Cloudflare R2 (S3-compatible)
+- **Storage**: AWS S3 SDK v3 (works with any S3-compatible service)
 - **SDK**: AWS SDK v3
 
 ## Getting Started
@@ -76,11 +76,11 @@ A modern, feature-rich file manager for Cloudflare R2 storage, built with Next.j
 ### Prerequisites
 
 - Node.js 18+ or Bun
-- Cloudflare R2 account with:
-  - R2 bucket(s)
+- S3-compatible storage account with:
+  - S3 bucket(s)
   - Access Key ID
   - Secret Access Key
-  - R2 endpoint URL
+  - S3 endpoint URL
 
 ### Installation
 
@@ -110,12 +110,12 @@ bun dev
 
 1. On first launch, you'll see the login screen
 2. Click "Add Storage Connection"
-3. Enter your R2 credentials:
+3. Enter your S3 credentials:
    - **Connection Name**: A friendly name for this bucket
-   - **R2 Endpoint**: Your R2 endpoint URL (e.g., `https://xxxxx.r2.cloudflarestorage.com`)
-   - **Access Key ID**: Your R2 access key
-   - **Secret Access Key**: Your R2 secret key
-   - **Bucket Name**: The name of your R2 bucket
+   - **S3 Endpoint**: Your S3 endpoint URL (e.g., `https://s3.amazonaws.com` or `https://xxxxx.r2.cloudflarestorage.com`)
+   - **Access Key ID**: Your S3 access key
+   - **Secret Access Key**: Your S3 secret key
+   - **Bucket Name**: The name of your S3 bucket
 4. Click "Add Connection" to test and save
 5. Start managing your files!
 
@@ -194,7 +194,7 @@ bun dev
 ```
 r2/
 ├── app/
-│   ├── api/                    # API routes for R2 operations
+│   ├── api/                    # API routes for S3 operations
 │   │   └── files/             # File operations endpoints
 │   ├── globals.css            # GNOME theme CSS variables
 │   ├── layout.tsx             # Root layout with theme provider
@@ -226,21 +226,12 @@ r2/
 │   ├── credentials.ts         # Bucket credentials manager
 │   ├── file-utils.ts          # File utility functions
 │   ├── navigation-history.ts  # Browser navigation manager
-│   ├── r2-operations.ts       # R2 SDK operations
+│   ├── r2-operations.ts       # S3 SDK operations (AWS SDK v3)
 │   └── types.ts              # TypeScript type definitions
 └── public/                    # Static assets
 ```
 
 ## Configuration
-
-### Environment Variables
-
-Create a `.env.local` file (optional - credentials are managed in-app):
-
-```env
-# Optional: Default theme
-NEXT_PUBLIC_DEFAULT_THEME=light
-```
 
 ### Theme Customization
 
@@ -285,7 +276,7 @@ npx tsc --noEmit
 
 - **Credentials Storage**: All credentials are stored in browser localStorage
 - **Client-Side Only**: Credentials never leave the browser
-- **No Backend**: Direct connection to R2 from client
+- **No Backend**: Direct connection to S3 from client
 - **Private Data**: Never commit credentials or .env files
 
 ## Browser Support
@@ -297,7 +288,7 @@ npx tsc --noEmit
 
 ## Known Limitations
 
-- Maximum 10,000 files per bucket (R2 API limit)
+- Maximum 10,000 files per bucket (S3 list objects limit per request)
 - No server-side operations
 - Credentials stored in browser localStorage
 - No user authentication system
@@ -325,8 +316,8 @@ MIT License - See LICENSE file for details
 - **Design**: Inspired by GNOME Files (Nautilus)
 - **Icons**: Based on VS Code Material Icon Theme
 - **Framework**: Built with Next.js and React
-- **Storage**: Powered by Cloudflare R2
+- **Storage**: Compatible with Amazon S3, Cloudflare R2, MinIO, and all S3-compatible services
 
 ---
 
-**Built with ❤️ using Next.js and Cloudflare R2**
+**Built with ❤️ using Next.js and AWS S3 SDK**
