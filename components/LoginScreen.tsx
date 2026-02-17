@@ -62,19 +62,13 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#fafbfc] dark:bg-[#0d1117]">
-      {/* Decorative Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 -left-4 w-72 h-72 bg-blue-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 -right-4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl"></div>
-      </div>
-
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--gnome-bg-primary)]">
       {/* Login Container */}
       <div className="w-full max-w-md relative">
-        <div className="bg-white dark:bg-[#161b22] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-8">
+        <div className="bg-[var(--gnome-bg-primary)] rounded border border-[var(--gnome-border)] p-8 shadow-lg">
           {/* Logo/Title */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/20">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-[var(--gnome-accent-blue)] rounded mb-4">
               <svg
                 className="w-8 h-8 text-white"
                 fill="none"
@@ -89,17 +83,17 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                 />
               </svg>
             </div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-2xl font-semibold text-[var(--gnome-text-primary)] mb-2">
               Welcome to R2 Explorer
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
+            <p className="text-[var(--gnome-text-secondary)] text-sm">
               Connect your Cloudflare R2 storage
             </p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+            <div className="mb-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
               <div className="flex items-start gap-3">
                 <svg
                   className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
@@ -112,7 +106,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                     clipRule="evenodd"
                   />
                 </svg>
-                <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
               </div>
             </div>
           )}
@@ -120,12 +114,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-[var(--gnome-text-primary)] mb-2">
                 R2 Endpoint
               </label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full"
                 placeholder="https://xxxxx.r2.cloudflarestorage.com"
                 value={credentials.endpoint}
                 onChange={(e) =>
@@ -136,12 +130,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-[var(--gnome-text-primary)] mb-2">
                 Access Key ID
               </label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full"
                 placeholder="Your access key ID"
                 value={credentials.accessKeyId}
                 onChange={(e) =>
@@ -152,12 +146,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-[var(--gnome-text-primary)] mb-2">
                 Secret Access Key
               </label>
               <input
                 type="password"
-                className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full"
                 placeholder="Your secret access key"
                 value={credentials.secretAccessKey}
                 onChange={(e) =>
@@ -168,12 +162,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-[var(--gnome-text-primary)] mb-2">
                 Bucket Name
               </label>
               <input
                 type="text"
-                className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full"
                 placeholder="your-bucket-name"
                 value={credentials.bucket}
                 onChange={(e) =>
@@ -186,7 +180,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-lg shadow-blue-500/30 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+              className="btn-primary w-full"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -216,17 +210,17 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             <button
               type="button"
               onClick={handleLoadFromEnv}
-              className="w-full py-2 px-4 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-sm transition-colors"
+              className="gnome-button w-full text-sm text-[var(--gnome-text-secondary)]"
             >
               Load from environment variables
             </button>
           </form>
 
           {/* Security Note */}
-          <div className="mt-6 p-4 bg-gray-50 dark:bg-[#0d1117] rounded-lg border border-gray-200 dark:border-gray-800">
+          <div className="mt-6 p-4 bg-[var(--gnome-bg-sidebar)] rounded border border-[var(--gnome-border)]">
             <div className="flex items-start gap-3">
               <svg
-                className="w-5 h-5 text-gray-400 flex-shrink-0"
+                className="w-5 h-5 text-[var(--gnome-text-secondary)] flex-shrink-0"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -236,7 +230,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                   clipRule="evenodd"
                 />
               </svg>
-              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+              <p className="text-xs text-[var(--gnome-text-secondary)] leading-relaxed">
                 Your credentials are stored securely in your browser's localStorage
                 and never sent to third-party servers.
               </p>
@@ -245,7 +239,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         </div>
 
         {/* Footer Text */}
-        <p className="text-center mt-6 text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-center mt-6 text-sm text-[var(--gnome-text-secondary)]">
           Powered by Cloudflare R2
         </p>
       </div>

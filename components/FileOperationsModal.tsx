@@ -129,110 +129,107 @@ export default function FileOperationsModal({
   };
 
   return (
-    <dialog className="modal modal-open">
-      <div className="modal-box max-w-2xl">
-        <h3 className="font-bold text-lg mb-4">{getTitle()}</h3>
+    <div className="modal">
+      <div className="modal-box" style={{ maxWidth: '600px' }}>
+        <div className="modal-header">{getTitle()}</div>
 
-        {operation === "rename" ? (
-          <div>
-            <label className="label">
-              <span className="label-text">Current name:</span>
-            </label>
-            <input
-              type="text"
-              className="input input-bordered w-full mb-4"
-              value={selectedItems[0]?.split("/").pop() || ""}
-              disabled
-            />
+        <div className="modal-body">
+          {operation === "rename" ? (
+            <div>
+              <label className="block text-sm font-medium text-[var(--gnome-text-primary)] mb-2">
+                Current name:
+              </label>
+              <input
+                type="text"
+                className="w-full mb-4"
+                value={selectedItems[0]?.split("/").pop() || ""}
+                disabled
+              />
 
-            <label className="label">
-              <span className="label-text">New name:</span>
-            </label>
-            <input
-              type="text"
-              className="input input-bordered w-full"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Enter new name"
-              autoFocus
-            />
-          </div>
-        ) : (
-          <div>
-            <label className="label">
-              <span className="label-text">Selected items:</span>
-            </label>
-            <div className="bg-base-200 rounded p-3 mb-4 max-h-32 overflow-y-auto">
-              {selectedItems.map((item) => (
-                <div key={item} className="text-sm py-1">
-                  📄 {item}
-                </div>
-              ))}
+              <label className="block text-sm font-medium text-[var(--gnome-text-primary)] mb-2">
+                New name:
+              </label>
+              <input
+                type="text"
+                className="w-full"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Enter new name"
+                autoFocus
+              />
             </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-[var(--gnome-text-primary)] mb-2">
+                Selected items:
+              </label>
+              <div className="bg-[var(--gnome-bg-sidebar)] rounded p-3 mb-4 max-h-32 overflow-y-auto border border-[var(--gnome-border)]">
+                {selectedItems.map((item) => (
+                  <div key={item} className="text-sm py-1 text-[var(--gnome-text-primary)]">
+                    📄 {item}
+                  </div>
+                ))}
+              </div>
 
-            <label className="label">
-              <span className="label-text">
+              <label className="block text-sm font-medium text-[var(--gnome-text-primary)] mb-2">
                 {operation === "copy" ? "Copy to:" : "Move to:"}
-              </span>
-            </label>
-            <select
-              className="select select-bordered w-full"
-              value={destinationPath}
-              onChange={(e) => setDestinationPath(e.target.value)}
-            >
-              {folders.map((folder) => (
-                <option key={folder} value={folder}>
-                  {folder === "" ? "(Root)" : folder}
-                </option>
-              ))}
-            </select>
-
-            <div className="alert alert-info mt-4">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                className="stroke-current shrink-0 w-6 h-6"
+              </label>
+              <select
+                className="w-full"
+                value={destinationPath}
+                onChange={(e) => setDestinationPath(e.target.value)}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
-              </svg>
-              <span className="text-sm">
-                {operation === "copy"
-                  ? "Files will be copied to the selected folder"
-                  : "Files will be moved to the selected folder"}
-              </span>
-            </div>
-          </div>
-        )}
+                {folders.map((folder) => (
+                  <option key={folder} value={folder}>
+                    {folder === "" ? "(Root)" : folder}
+                  </option>
+                ))}
+              </select>
 
-        <div className="modal-action">
-          <button className="btn" onClick={onClose} disabled={processing}>
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded flex items-center gap-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  className="stroke-current shrink-0 w-5 h-5 text-blue-600 dark:text-blue-400"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+                <span className="text-sm text-blue-700 dark:text-blue-300">
+                  {operation === "copy"
+                    ? "Files will be copied to the selected folder"
+                    : "Files will be moved to the selected folder"}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-footer">
+          <button className="gnome-button" onClick={onClose} disabled={processing}>
             Cancel
           </button>
           <button
-            className="btn btn-primary"
+            className="btn-primary"
             onClick={handleExecute}
             disabled={processing || (operation === "rename" && !newName.trim())}
           >
             {processing ? (
-              <>
-                <span className="loading loading-spinner loading-sm"></span>
+              <span className="flex items-center gap-2">
+                <div className="loading" style={{ width: 16, height: 16 }}></div>
                 Processing...
-              </>
+              </span>
             ) : (
               operation.charAt(0).toUpperCase() + operation.slice(1)
             )}
           </button>
         </div>
       </div>
-      <form method="dialog" className="modal-backdrop">
-        <button onClick={onClose}>close</button>
-      </form>
-    </dialog>
+    </div>
   );
 }

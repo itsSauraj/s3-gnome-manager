@@ -1,110 +1,103 @@
 @import "tailwindcss";
-@plugin "daisyui";
+
+/* GNOME Files (Nautilus) Design System */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* GNOME Light Theme */
+  --gnome-bg-primary: #ffffff;
+  --gnome-bg-sidebar: #f6f5f4;
+  --gnome-bg-header: #ffffff;
+  --gnome-bg-hover: #efefef;
+  --gnome-bg-selected: #e8f0fe;
+  --gnome-folder-color: #e9b96e;
+  --gnome-border: #dcdcdc;
+  --gnome-text-primary: #2e3436;
+  --gnome-text-secondary: #929291;
+  --gnome-accent-blue: #3584e4;
+  --gnome-button-hover: #f0f0f0;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  /* GNOME Dark Theme */
+  --gnome-bg-primary: #242424;
+  --gnome-bg-sidebar: #353535;
+  --gnome-bg-header: #303030;
+  --gnome-bg-hover: #3c3c3c;
+  --gnome-bg-selected: #2a4a6e;
+  --gnome-folder-color: #d5af6c;
+  --gnome-border: #1e1e1e;
+  --gnome-text-primary: #ffffff;
+  --gnome-text-secondary: #919190;
+  --gnome-accent-blue: #3584e4;
+  --gnome-button-hover: #404040;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: var(--font-ubuntu), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--gnome-bg-primary);
+  color: var(--gnome-text-primary);
+  margin: 0;
+  padding: 0;
 }
 
-/* Glassmorphism Styles */
-.glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+/* Remove excessive border radius */
+* {
+  border-radius: 0;
 }
 
-.glass-header {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+/* Flat button styles - GNOME specific */
+.gnome-button {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  color: var(--gnome-text-primary);
 }
 
-.glass-button {
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  transition: all 0.3s ease;
+.gnome-button:hover:not(:disabled) {
+  background: var(--gnome-button-hover);
 }
 
-.glass-button:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.gnome-button:active:not(:disabled) {
+  background: var(--gnome-bg-hover);
 }
 
-.glass-input {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
+.gnome-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.glass-input:focus {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+.gnome-button-icon {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  color: var(--gnome-text-primary);
+  background: transparent;
+  border: none;
 }
 
-/* Dark mode glassmorphism */
-@media (prefers-color-scheme: dark) {
-  .glass-card {
-    background: rgba(17, 25, 40, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  }
-
-  .glass-header {
-    background: rgba(17, 25, 40, 0.85);
-  }
-
-  .glass-button {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .glass-button:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .glass-input {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .glass-input:focus {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
-  }
+.gnome-button-icon:hover:not(:disabled) {
+  background: var(--gnome-button-hover);
 }
 
-/* Smooth scrollbar */
+.gnome-button-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* GNOME scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -112,72 +105,338 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: #949494;
   border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+  background: #686868;
 }
 
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
+.dark ::-webkit-scrollbar-thumb {
+  background: #686868;
 }
 
-/* Animation for modals */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #888888;
+}
+
+/* Input fields - GNOME style */
+input,
+textarea,
+select {
+  background: var(--gnome-bg-primary);
+  border: 1px solid var(--gnome-border);
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 4px;
+  color: var(--gnome-text-primary);
+  transition: border-color 0.15s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--gnome-accent-blue);
+  box-shadow: 0 0 0 2px rgba(53, 132, 228, 0.2);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--gnome-text-secondary);
+}
+
+/* File input */
+.file-input {
+  background: var(--gnome-bg-primary);
+  border: 1px solid var(--gnome-border);
+  border-radius: 4px;
+  padding: 6px;
+  color: var(--gnome-text-primary);
+}
+
+/* Modal/Dialog - GNOME style */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
 }
 
 .modal-box {
-  animation: fadeIn 0.2s ease-out;
+  background: var(--gnome-bg-primary);
+  border: 1px solid var(--gnome-border);
+  border-radius: 8px;
+  padding: 0;
+  min-width: 400px;
+  max-width: 600px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
+.modal-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--gnome-border);
+  font-size: 15px;
+  font-weight: 600;
+}
 
-@plugin "daisyui/theme" {
-  name: "light";
-  default: false;
-  prefersdark: false;
-  color-scheme: "light";
-  --color-base-100: oklch(98% 0.014 180.72);
-  --color-base-200: oklch(95% 0.051 180.801);
-  --color-base-300: oklch(91% 0.096 180.426);
-  --color-base-content: oklch(38% 0.063 188.416);
-  --color-primary: oklch(82% 0.189 84.429);
-  --color-primary-content: oklch(27% 0.077 45.635);
-  --color-secondary: oklch(84% 0.238 128.85);
-  --color-secondary-content: oklch(27% 0.072 132.109);
-  --color-accent: oklch(71% 0.203 305.504);
-  --color-accent-content: oklch(29% 0.149 302.717);
-  --color-neutral: oklch(27% 0.046 192.524);
-  --color-neutral-content: oklch(98% 0.014 180.72);
-  --color-info: oklch(68% 0.169 237.323);
-  --color-info-content: oklch(97% 0.013 236.62);
-  --color-success: oklch(69% 0.17 162.48);
-  --color-success-content: oklch(97% 0.021 166.113);
-  --color-warning: oklch(76% 0.188 70.08);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(65% 0.241 354.308);
-  --color-error-content: oklch(97% 0.014 343.198);
-  --radius-selector: 0rem;
-  --radius-field: 2rem;
-  --radius-box: 2rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 0;
-  --noise: 0;
+.modal-body {
+  padding: 16px;
+}
+
+.modal-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--gnome-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Context Menu - GNOME style */
+.context-menu {
+  position: fixed;
+  background: var(--gnome-bg-primary);
+  border: 1px solid var(--gnome-border);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 220px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+}
+
+.context-menu-item {
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--gnome-text-primary);
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.context-menu-item:hover:not(.disabled) {
+  background: var(--gnome-bg-hover);
+}
+
+.context-menu-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--gnome-border);
+  margin: 4px 8px;
+}
+
+.context-menu-shortcut {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--gnome-text-secondary);
+  background: var(--gnome-bg-hover);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* Loading spinner */
+.loading {
+  border: 3px solid var(--gnome-border);
+  border-top-color: var(--gnome-accent-blue);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  color: var(--gnome-text-secondary);
+  gap: 8px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  opacity: 0.3;
+}
+
+.empty-text {
+  font-size: 13px;
+}
+
+/* Button variants */
+.btn-primary {
+  background: var(--gnome-accent-blue);
+  color: white;
+  border: 1px solid var(--gnome-accent-blue);
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2b6ac9;
+  border-color: #2b6ac9;
+}
+
+.btn-primary:active:not(:disabled) {
+  background: #1e5ba8;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  color: #c01c28;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #fce8e8;
+}
+
+.dark .btn-danger:hover:not(:disabled) {
+  background: rgba(192, 28, 40, 0.2);
+}
+
+/* Override DaisyUI base styles if present */
+.bg-base-100 {
+  background: var(--gnome-bg-primary) !important;
+}
+
+.bg-base-200 {
+  background: var(--gnome-bg-sidebar) !important;
+}
+
+.bg-base-300 {
+  background: var(--gnome-bg-hover) !important;
+}
+
+.border-base-300 {
+  border-color: var(--gnome-border) !important;
+}
+
+.text-base-content {
+  color: var(--gnome-text-primary) !important;
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gnome-border);
+  font-size: 13px;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+  color: var(--gnome-text-primary);
+}
+
+.breadcrumb-item:hover {
+  background: var(--gnome-bg-hover);
+}
+
+.breadcrumb-separator {
+  color: var(--gnome-text-secondary);
+  user-select: none;
+}
+
+/* Sidebar item styling */
+.sidebar-item {
+  width: 100%;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-left: 3px solid transparent;
+  font-size: 13px;
+  color: var(--gnome-text-primary);
+  background: transparent;
+  border-right: none;
+  border-top: none;
+  border-bottom: none;
+  text-align: left;
+}
+
+.sidebar-item:hover {
+  background: var(--gnome-bg-hover);
+}
+
+.sidebar-item.active {
+  background: var(--gnome-bg-selected);
+  border-left-color: var(--gnome-accent-blue);
+  color: var(--gnome-accent-blue);
+}
+
+/* Shadow utilities */
+.shadow-lg {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.shadow-xl {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.shadow-2xl {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
 }

@@ -3,12 +3,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { FileMetadata } from "@/lib/types";
 import { formatFileSize } from "@/lib/file-utils";
-import { CredentialsManager } from "@/lib/credentials";
-import FolderTree from "./FolderTree";
-import Breadcrumb from "./Breadcrumb";
+import { CredentialsManager, type BucketConfig } from "@/lib/credentials";
 import FileOperationsModal from "./FileOperationsModal";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { getFileIcon } from "./FileIcons";
+import HeaderBar from "./HeaderBar";
+import Sidebar from "./Sidebar";
+import GridView from "./views/GridView";
+import ListView from "./views/ListView";
+import SettingsDialog from "./SettingsDialog";
+import LoadingSpinner from "./LoadingSpinner";
 import {
   Upload,
   FolderPlus,
@@ -16,13 +20,10 @@ import {
   Scissors,
   Trash,
   Download,
-  RefreshCcw,
-  LogOut,
-  List,
-  Grid,
   Edit3,
   Folder,
-} from "@geist-ui/icons";
+  RefreshCcw,
+} from "lucide-react";
 
 interface FileItem extends FileMetadata {
   type: "file" | "folder";
@@ -40,10 +41,13 @@ export default function EnhancedFileExplorer() {
   const [allFiles, setAllFiles] = useState<FileMetadata[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [showOperationsModal, setShowOperationsModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [buckets, setBuckets] = useState<BucketConfig[]>([]);
+  const [currentBucket, setCurrentBucket] = useState<string>("");
   const [operationType, setOperationType] = useState<"copy" | "move" | "rename">("copy");
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item?: FileItem } | null>(null);
@@ -110,6 +114,19 @@ export default function EnhancedFileExplorer() {
   };
 
   useEffect(() => {
+    // Load buckets
+    const availableBuckets = CredentialsManager.getBuckets();
+    setBuckets(availableBuckets);
+
+    // Set current bucket
+    const currentBucketId = CredentialsManager.getCurrentBucketId();
+    if (currentBucketId) {
+      setCurrentBucket(currentBucketId);
+    } else if (availableBuckets.length > 0) {
+      setCurrentBucket(availableBuckets[0].id);
+      CredentialsManager.setCurrentBucket(availableBuckets[0].id);
+    }
+
     loadAllFiles();
   }, []);
 
@@ -117,6 +134,14 @@ export default function EnhancedFileExplorer() {
     organizeFolders(allFiles, currentPath);
     setSelectedItems(new Set());
   }, [currentPath, allFiles]);
+
+  // Reload files when bucket changes
+  useEffect(() => {
+    if (currentBucket) {
+      CredentialsManager.setCurrentBucket(currentBucket);
+      loadAllFiles();
+    }
+  }, [currentBucket]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -348,6 +373,11 @@ export default function EnhancedFileExplorer() {
     }
   };
 
+  const handleBucketChange = (bucketId: string) => {
+    setCurrentBucket(bucketId);
+    setCurrentPath(""); // Reset to root when changing buckets
+  };
+
   const handleContextMenu = (e: React.MouseEvent, item?: FileItem) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, item });
@@ -465,271 +495,98 @@ export default function EnhancedFileExplorer() {
   };
 
   return (
-    <div
-      className="h-screen flex flex-col bg-[#fafbfc] dark:bg-[#0d1117]"
-      onContextMenu={(e) => handleContextMenu(e)}
-    >
-      {/* Header */}
-      <div className="bg-white dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-md">
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
-                />
-              </svg>
+    <div className="h-screen flex flex-col bg-[var(--gnome-bg-primary)]">
+      <HeaderBar
+        currentPath={currentPath}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onNavigateHome={() => setCurrentPath("")}
+        buckets={buckets}
+        currentBucket={currentBucket}
+        onBucketChange={handleBucketChange}
+      />
+      <div className="flex-1 flex overflow-hidden">
+        <Sidebar
+          buckets={buckets}
+          currentBucket={currentBucket}
+          onBucketChange={handleBucketChange}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+        <main className="flex-1 overflow-y-auto" onContextMenu={(e) => handleContextMenu(e)}>
+          {message && (
+            <div className={`mx-4 mt-4 p-3 rounded border text-sm ${
+              message.type === "success" ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800" :
+              message.type === "error" ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800" :
+              "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+            }`}>
+              {message.text}
             </div>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-              R2 File Explorer
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              <button
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                  viewMode === "list"
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
-                onClick={() => setViewMode("list")}
-              >
-                <List size={16} />
-                List
-              </button>
-              <button
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                  viewMode === "grid"
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
-                onClick={() => setViewMode("grid")}
-              >
-                <Grid size={16} />
-                Grid
-              </button>
+          )}
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <LoadingSpinner />
             </div>
-            <button
-              className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors flex items-center gap-1.5"
-              onClick={loadAllFiles}
-            >
-              <RefreshCcw size={16} />
-            </button>
-            <button
-              className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors flex items-center gap-1.5"
-              onClick={handleLogout}
-            >
-              <LogOut size={16} />
-              Logout
-            </button>
-          </div>
-        </div>
+          ) : files.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📂</div>
+              <div className="empty-text">Empty folder</div>
+            </div>
+          ) : viewMode === "grid" ? (
+            <GridView
+              files={files}
+              selectedItems={selectedItems}
+              onSelect={handleFileSelect}
+              onDoubleClick={(item) => item.type === "folder" && handleFolderDoubleClick(item.name)}
+              onContextMenu={handleContextMenu}
+              clipboard={clipboard}
+            />
+          ) : (
+            <ListView
+              files={files}
+              selectedItems={selectedItems}
+              onSelect={handleFileSelect}
+              onDoubleClick={(item) => item.type === "folder" && handleFolderDoubleClick(item.name)}
+              onContextMenu={handleContextMenu}
+              clipboard={clipboard}
+            />
+          )}
+        </main>
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 px-6 py-3">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            <Upload size={16} />
-            Upload
-          </button>
-          <button
-            onClick={handleCreateFolder}
-            className="px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            <FolderPlus size={16} />
-            New Folder
-          </button>
-
-          <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-2"></div>
-
-          {selectedItems.size > 0 && (
-            <>
-              <button
-                onClick={handleCopy}
-                className="px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <Copy size={16} />
-                Copy
-              </button>
-              <button
-                onClick={handleCut}
-                className="px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <Scissors size={16} />
-                Cut
-              </button>
-              {selectedItems.size === 1 && (
-                <button
-                  onClick={() => {
-                    setOperationType("rename");
-                    setShowOperationsModal(true);
-                  }}
-                  className="px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <Edit3 size={16} />
-                  Rename
-                </button>
-              )}
-              <button
-                onClick={handleDelete}
-                className="px-3 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <Trash size={16} />
-                Delete ({selectedItems.size})
-              </button>
-            </>
-          )}
-
-          {clipboard && (
-            <>
-              <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-2"></div>
-              <button
-                onClick={handlePaste}
-                className="px-3 py-2 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <Copy size={16} />
-                Paste {clipboard.items.length} item(s)
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Message */}
-      {message && (
-        <div className={`mx-6 mt-4 p-4 rounded-lg ${
-          message.type === "success" ? "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800" :
-          message.type === "error" ? "bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800" :
-          "bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-        }`}>
-          <span className="text-sm">{message.text}</span>
-        </div>
+      {/* Settings Dialog */}
+      {showSettings && (
+        <SettingsDialog
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          onCredentialsUpdate={loadAllFiles}
+        />
       )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden p-6 gap-4">
-        {/* Sidebar */}
-        <div className="w-64 bg-white dark:bg-[#161b22] rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-          <FolderTree allFiles={allFiles} currentPath={currentPath} onNavigate={handleNavigate} />
-        </div>
-
-        {/* Main Area */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-[#161b22] rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-          <Breadcrumb currentPath={currentPath} onNavigate={handleNavigate} />
-
-          <div
-            ref={fileListRef}
-            className="flex-1 overflow-y-auto p-6"
-            onContextMenu={(e) => handleContextMenu(e)}
-          >
-            {loading ? (
-              <div className="flex justify-center items-center h-full">
-                <span className="loading loading-spinner loading-lg"></span>
-              </div>
-            ) : files.length === 0 ? (
-              <div className="text-center text-gray-500 mt-8">
-                <p className="text-6xl mb-4">📂</p>
-                <p>Empty folder</p>
-              </div>
-            ) : viewMode === "list" ? (
-              <div className="space-y-1">
-                {files.map((item) => (
-                  <div
-                    key={item.key}
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl cursor-pointer transition-all ${
-                      selectedItems.has(item.key)
-                        ? "bg-blue-500/20 ring-2 ring-blue-500/50"
-                        : "hover:bg-white/30 dark:hover:bg-gray-800/30"
-                    } ${
-                      isItemCut(item.key) ? "opacity-50" : ""
-                    } ${
-                      isItemInClipboard(item.key) && clipboard?.operation === "copy"
-                        ? "ring-1 ring-green-500/50"
-                        : ""
-                    }`}
-                    onClick={(e) => handleFileSelect(item.key, e.ctrlKey || e.metaKey)}
-                    onDoubleClick={() => item.type === "folder" && handleFolderDoubleClick(item.name)}
-                    onContextMenu={(e) => handleContextMenu(e, item)}
-                  >
-                    <div className="flex-shrink-0">{getItemIcon(item)}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{item.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {item.type === "file" ? formatFileSize(item.size) : "Folder"}
-                      </p>
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      {new Date(item.lastModified).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {files.map((item) => (
-                  <div
-                    key={item.key}
-                    className={`bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl cursor-pointer transition-all border-2 ${
-                      selectedItems.has(item.key)
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                        : "border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    } ${isItemCut(item.key) ? "opacity-50" : ""} ${
-                      isItemInClipboard(item.key) && clipboard?.operation === "copy"
-                        ? "border-green-500"
-                        : ""
-                    }`}
-                    onClick={(e) => handleFileSelect(item.key, e.ctrlKey || e.metaKey)}
-                    onDoubleClick={() => item.type === "folder" && handleFolderDoubleClick(item.name)}
-                    onContextMenu={(e) => handleContextMenu(e, item)}
-                  >
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="flex items-center justify-center w-12 h-12 bg-white dark:bg-gray-700 rounded-lg">
-                        {getItemIcon(item)}
-                      </div>
-                      <p className="text-sm text-center truncate w-full font-medium text-gray-900 dark:text-white">{item.name}</p>
-                      {item.type === "file" && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(item.size)}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <dialog className="modal modal-open">
-          <div className="modal-box glass-card">
-            <h3 className="font-bold text-lg mb-4">Upload File</h3>
-            <p className="text-sm mb-4">Upload to: {currentPath || "(root)"}</p>
-            <input
-              type="file"
-              className="file-input file-input-bordered w-full"
-              onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-            />
-            <div className="modal-action">
-              <button className="btn" onClick={() => setShowUploadModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleUpload} disabled={!uploadFile}>
+        <div className="modal">
+          <div className="modal-box">
+            <div className="modal-header">Upload File</div>
+            <div className="modal-body">
+              <p className="text-sm mb-3 text-[var(--gnome-text-secondary)]">
+                Upload to: {currentPath || "(root)"}
+              </p>
+              <input
+                type="file"
+                className="file-input w-full"
+                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="gnome-button" onClick={() => setShowUploadModal(false)}>
+                Cancel
+              </button>
+              <button className="btn-primary" onClick={handleUpload} disabled={!uploadFile}>
                 Upload
               </button>
             </div>
           </div>
-        </dialog>
+        </div>
       )}
 
       {/* Operations Modal */}
