@@ -9,12 +9,18 @@ interface FileItem extends FileMetadata {
   name: string;
 }
 
+interface ClipboardData {
+  operation: "copy" | "cut";
+  items: string[];
+}
+
 interface ListViewProps {
   files: FileItem[];
   selectedItems: Set<string>;
   onSelect: (key: string, isCtrl: boolean) => void;
-  onDoubleClick: (name: string) => void;
-  onContextMenu: (e: React.MouseEvent, item: FileItem) => void;
+  onDoubleClick: (item: FileItem) => void;
+  onContextMenu: (e: React.MouseEvent, item?: FileItem) => void;
+  clipboard?: ClipboardData | null;
 }
 
 export default function ListView({
@@ -22,7 +28,8 @@ export default function ListView({
   selectedItems,
   onSelect,
   onDoubleClick,
-  onContextMenu
+  onContextMenu,
+  clipboard
 }: ListViewProps) {
   if (files.length === 0) {
     return (
@@ -33,10 +40,19 @@ export default function ListView({
     );
   }
 
+  const isItemInClipboard = (key: string) => {
+    return clipboard?.items.includes(key);
+  };
+
+  const isItemCut = (key: string) => {
+    return clipboard?.operation === "cut" && clipboard.items.includes(key);
+  };
+
   return (
     <div className="flex flex-col">
       {files.map((item) => {
         const isSelected = selectedItems.has(item.key);
+        const isCut = isItemCut(item.key);
 
         return (
           <div
@@ -47,10 +63,14 @@ export default function ListView({
                 ? 'bg-[var(--gnome-bg-selected)]'
                 : 'hover:bg-[var(--gnome-bg-hover)]'
               }
+              ${isCut ? 'opacity-50' : ''}
             `}
             onClick={(e) => onSelect(item.key, e.ctrlKey || e.metaKey)}
-            onDoubleClick={() => item.type === 'folder' && onDoubleClick(item.name)}
-            onContextMenu={(e) => onContextMenu(e, item)}
+            onDoubleClick={() => onDoubleClick(item)}
+            onContextMenu={(e) => {
+              e.stopPropagation();
+              onContextMenu(e, item);
+            }}
           >
             {getFileIcon(item.name, item.type === 'folder', 20)}
             <span className="flex-1 text-sm text-[var(--gnome-text-primary)]">

@@ -9,12 +9,18 @@ interface FileItem extends FileMetadata {
   name: string;
 }
 
+interface ClipboardData {
+  operation: "copy" | "cut";
+  items: string[];
+}
+
 interface GridViewProps {
   files: FileItem[];
   selectedItems: Set<string>;
   onSelect: (key: string, isCtrl: boolean) => void;
-  onDoubleClick: (name: string) => void;
-  onContextMenu: (e: React.MouseEvent, item: FileItem) => void;
+  onDoubleClick: (item: FileItem) => void;
+  onContextMenu: (e: React.MouseEvent, item?: FileItem) => void;
+  clipboard?: ClipboardData | null;
 }
 
 export default function GridView({
@@ -22,7 +28,8 @@ export default function GridView({
   selectedItems,
   onSelect,
   onDoubleClick,
-  onContextMenu
+  onContextMenu,
+  clipboard
 }: GridViewProps) {
   if (files.length === 0) {
     return (
@@ -33,6 +40,14 @@ export default function GridView({
     );
   }
 
+  const isItemInClipboard = (key: string) => {
+    return clipboard?.items.includes(key);
+  };
+
+  const isItemCut = (key: string) => {
+    return clipboard?.operation === "cut" && clipboard.items.includes(key);
+  };
+
   return (
     <div
       className="grid gap-3 p-4"
@@ -40,6 +55,7 @@ export default function GridView({
     >
       {files.map((item) => {
         const isSelected = selectedItems.has(item.key);
+        const isCut = isItemCut(item.key);
 
         return (
           <div
@@ -50,10 +66,14 @@ export default function GridView({
                 ? 'bg-[var(--gnome-bg-selected)]'
                 : 'hover:bg-[var(--gnome-bg-hover)]'
               }
+              ${isCut ? 'opacity-50' : ''}
             `}
             onClick={(e) => onSelect(item.key, e.ctrlKey || e.metaKey)}
-            onDoubleClick={() => item.type === 'folder' && onDoubleClick(item.name)}
-            onContextMenu={(e) => onContextMenu(e, item)}
+            onDoubleClick={() => onDoubleClick(item)}
+            onContextMenu={(e) => {
+              e.stopPropagation();
+              onContextMenu(e, item);
+            }}
           >
             {getFileIcon(item.name, item.type === 'folder', 48)}
             <span className="text-xs text-center break-words w-full text-[var(--gnome-text-primary)]">

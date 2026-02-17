@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Edit, Copy } from 'lucide-react';
 import { CredentialsManager, type BucketConfig } from '@/lib/credentials';
 
 interface SettingsDialogProps {
@@ -10,9 +10,13 @@ interface SettingsDialogProps {
   onCredentialsUpdate: () => void;
 }
 
+type FormMode = 'add' | 'edit' | 'duplicate';
+
 export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }: SettingsDialogProps) {
   const [buckets, setBuckets] = useState<BucketConfig[]>(CredentialsManager.getBuckets());
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState<FormMode>('add');
+  const [editingBucketId, setEditingBucketId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     endpoint: '',
@@ -25,7 +29,7 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
 
   if (!isOpen) return null;
 
-  const handleAddBucket = async () => {
+  const handleSaveBucket = async () => {
     if (!formData.name || !formData.endpoint || !formData.accessKeyId || !formData.secretAccessKey || !formData.bucket) {
       setError('All fields are required');
       return;
@@ -51,9 +55,8 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
         throw new Error("Invalid credentials or connection failed");
       }
 
-      // Save credentials
-      const newBucket: BucketConfig = {
-        id: `bucket-${Date.now()}`,
+      const bucketConfig: BucketConfig = {
+        id: formMode === 'edit' && editingBucketId ? editingBucketId : `bucket-${Date.now()}`,
         name: formData.name,
         credentials: {
           endpoint: formData.endpoint,
@@ -63,22 +66,58 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
         },
       };
 
-      CredentialsManager.addBucket(newBucket);
+      CredentialsManager.addBucket(bucketConfig);
+
       setBuckets(CredentialsManager.getBuckets());
-      setShowAddForm(false);
-      setFormData({
-        name: '',
-        endpoint: '',
-        accessKeyId: '',
-        secretAccessKey: '',
-        bucket: '',
-      });
+      resetForm();
       onCredentialsUpdate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add connection");
+      setError(err instanceof Error ? err.message : "Failed to save connection");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEditBucket = (bucket: BucketConfig) => {
+    setFormMode('edit');
+    setEditingBucketId(bucket.id);
+    setFormData({
+      name: bucket.name,
+      endpoint: bucket.credentials.endpoint,
+      accessKeyId: bucket.credentials.accessKeyId,
+      secretAccessKey: bucket.credentials.secretAccessKey,
+      bucket: bucket.credentials.bucket,
+    });
+    setShowForm(true);
+    setError('');
+  };
+
+  const handleDuplicateBucket = (bucket: BucketConfig) => {
+    setFormMode('duplicate');
+    setEditingBucketId(null);
+    setFormData({
+      name: `${bucket.name} (Copy)`,
+      endpoint: bucket.credentials.endpoint,
+      accessKeyId: bucket.credentials.accessKeyId,
+      secretAccessKey: bucket.credentials.secretAccessKey,
+      bucket: bucket.credentials.bucket,
+    });
+    setShowForm(true);
+    setError('');
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setFormMode('add');
+    setEditingBucketId(null);
+    setFormData({
+      name: '',
+      endpoint: '',
+      accessKeyId: '',
+      secretAccessKey: '',
+      bucket: '',
+    });
+    setError('');
   };
 
   const handleRemoveBucket = (bucketId: string) => {
@@ -110,20 +149,40 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
                   <div className="font-medium text-sm text-[var(--gnome-text-primary)]">{bucket.name}</div>
                   <div className="text-xs text-[var(--gnome-text-secondary)]">{bucket.credentials.bucket}</div>
                 </div>
-                <button
-                  onClick={() => handleRemoveBucket(bucket.id)}
-                  className="gnome-button-icon text-red-500"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleEditBucket(bucket)}
+                    className="gnome-button-icon"
+                    title="Edit"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDuplicateBucket(bucket)}
+                    className="gnome-button-icon"
+                    title="Duplicate"
+                  >
+                    <Copy size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleRemoveBucket(bucket.id)}
+                    className="gnome-button-icon text-red-500"
+                    title="Remove"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
 
           {/* Add bucket button */}
-          {!showAddForm && (
+          {!showForm && (
             <button
-              onClick={() => setShowAddForm(true)}
+              onClick={() => {
+                setFormMode('add');
+                setShowForm(true);
+              }}
               className="gnome-button flex items-center gap-2"
             >
               <Plus size={16} />
@@ -131,10 +190,12 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
             </button>
           )}
 
-          {/* Add form */}
-          {showAddForm && (
+          {/* Form */}
+          {showForm && (
             <div className="mt-4 p-4 border border-[var(--gnome-border)] rounded">
-              <h3 className="text-sm font-medium mb-3 text-[var(--gnome-text-primary)]">New Connection</h3>
+              <h3 className="text-sm font-medium mb-3 text-[var(--gnome-text-primary)]">
+                {formMode === 'edit' ? 'Edit Connection' : formMode === 'duplicate' ? 'Duplicate Connection' : 'New Connection'}
+              </h3>
 
               {error && (
                 <div className="mb-3 p-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm rounded">
@@ -200,21 +261,18 @@ export default function SettingsDialog({ isOpen, onClose, onCredentialsUpdate }:
 
                 <div className="flex gap-2 pt-2">
                   <button
-                    onClick={() => {
-                      setShowAddForm(false);
-                      setError('');
-                    }}
+                    onClick={resetForm}
                     className="gnome-button px-3 py-1.5"
                     disabled={loading}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleAddBucket}
+                    onClick={handleSaveBucket}
                     className="gnome-button px-3 py-1.5 bg-[var(--gnome-accent-blue)] text-white"
                     disabled={loading}
                   >
-                    {loading ? 'Testing...' : 'Add Connection'}
+                    {loading ? 'Testing...' : formMode === 'edit' ? 'Save Changes' : 'Add Connection'}
                   </button>
                 </div>
               </div>

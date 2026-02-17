@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { FileMetadata } from "@/lib/types";
 import { formatFileSize } from "@/lib/file-utils";
 import { CredentialsManager, type BucketConfig } from "@/lib/credentials";
+import { NavigationHistoryManager } from "@/lib/navigation-history";
 import FileOperationsModal from "./FileOperationsModal";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { getFileIcon } from "./FileIcons";
@@ -36,6 +38,8 @@ interface ClipboardData {
 }
 
 export default function EnhancedFileExplorer() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentPath, setCurrentPath] = useState("");
   const [files, setFiles] = useState<FileItem[]>([]);
   const [allFiles, setAllFiles] = useState<FileMetadata[]>([]);
@@ -52,11 +56,21 @@ export default function EnhancedFileExplorer() {
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item?: FileItem } | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
   const fileListRef = useRef<HTMLDivElement>(null);
+  const isNavigatingRef = useRef(false);
 
   const showMessage = (type: "success" | "error" | "info", text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 5000);
+  };
+
+  const updateNavigationState = () => {
+    if (currentBucket) {
+      setCanGoBack(NavigationHistoryManager.canGoBack(currentBucket));
+      setCanGoForward(NavigationHistoryManager.canGoForward(currentBucket));
+    }
   };
 
   const loadAllFiles = async () => {
@@ -113,6 +127,7 @@ export default function EnhancedFileExplorer() {
     setFiles(items);
   };
 
+  // Initial setup - runs once on mount
   useEffect(() => {
     // Load buckets
     const availableBuckets = CredentialsManager.getBuckets();
@@ -120,15 +135,43 @@ export default function EnhancedFileExplorer() {
 
     // Set current bucket
     const currentBucketId = CredentialsManager.getCurrentBucketId();
+    let activeBucketId = currentBucketId;
+
     if (currentBucketId) {
       setCurrentBucket(currentBucketId);
     } else if (availableBuckets.length > 0) {
-      setCurrentBucket(availableBuckets[0].id);
-      CredentialsManager.setCurrentBucket(availableBuckets[0].id);
+      activeBucketId = availableBuckets[0].id;
+      setCurrentBucket(activeBucketId);
+      CredentialsManager.setCurrentBucket(activeBucketId);
+    }
+
+    // Initialize navigation history for the bucket
+    if (activeBucketId) {
+      const pathFromUrl = searchParams.get('path');
+      const initialPath = pathFromUrl ? decodeURIComponent(pathFromUrl) : "";
+      NavigationHistoryManager.initializeBucket(activeBucketId, initialPath);
+      setCurrentPath(initialPath);
+      updateNavigationState();
     }
 
     loadAllFiles();
   }, []);
+
+  // Sync currentPath with URL changes (for browser back/forward)
+  useEffect(() => {
+    if (isNavigatingRef.current) {
+      isNavigatingRef.current = false;
+      return;
+    }
+
+    // Browser back/forward navigation detected
+    const pathFromUrl = searchParams.get('path');
+    const decodedPath = pathFromUrl ? decodeURIComponent(pathFromUrl) : "";
+
+    if (decodedPath !== currentPath) {
+      setCurrentPath(decodedPath);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     organizeFolders(allFiles, currentPath);
@@ -139,9 +182,21 @@ export default function EnhancedFileExplorer() {
   useEffect(() => {
     if (currentBucket) {
       CredentialsManager.setCurrentBucket(currentBucket);
+
+      // Initialize history for new bucket and get its last path
+      NavigationHistoryManager.initializeBucket(currentBucket);
+      const lastPath = NavigationHistoryManager.getCurrentPath(currentBucket);
+
+      setCurrentPath(lastPath);
+      updateNavigationState();
       loadAllFiles();
     }
   }, [currentBucket]);
+
+  // Update navigation state when path changes
+  useEffect(() => {
+    updateNavigationState();
+  }, [currentPath, currentBucket]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -201,12 +256,72 @@ export default function EnhancedFileExplorer() {
   }, [selectedItems, clipboard, files, currentPath]);
 
   const handleNavigate = (path: string) => {
+    if (!currentBucket) return;
+
+    isNavigatingRef.current = true;
+
+    // Push to navigation history
+    NavigationHistoryManager.pushPath(currentBucket, path);
     setCurrentPath(path);
+
+    // Update URL with new path
+    const params = new URLSearchParams(searchParams.toString());
+    if (path) {
+      params.set('path', encodeURIComponent(path));
+    } else {
+      params.delete('path');
+    }
+    router.push(`?${params.toString()}`, { scroll: false });
+
+    // Update navigation state
+    updateNavigationState();
+  };
+
+  const handleBack = () => {
+    if (!currentBucket) return;
+
+    const previousPath = NavigationHistoryManager.goBack(currentBucket);
+    if (previousPath !== null) {
+      isNavigatingRef.current = true;
+      setCurrentPath(previousPath);
+
+      // Update URL
+      const params = new URLSearchParams(searchParams.toString());
+      if (previousPath) {
+        params.set('path', encodeURIComponent(previousPath));
+      } else {
+        params.delete('path');
+      }
+      router.push(`?${params.toString()}`, { scroll: false });
+
+      updateNavigationState();
+    }
+  };
+
+  const handleForward = () => {
+    if (!currentBucket) return;
+
+    const nextPath = NavigationHistoryManager.goForward(currentBucket);
+    if (nextPath !== null) {
+      isNavigatingRef.current = true;
+      setCurrentPath(nextPath);
+
+      // Update URL
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextPath) {
+        params.set('path', encodeURIComponent(nextPath));
+      } else {
+        params.delete('path');
+      }
+      router.push(`?${params.toString()}`, { scroll: false });
+
+      updateNavigationState();
+    }
   };
 
   const handleFolderDoubleClick = (folderName: string) => {
     const newPath = currentPath ? `${currentPath}/${folderName}` : folderName;
-    setCurrentPath(newPath);
+    handleNavigate(newPath);
   };
 
   const handleFileSelect = (key: string, isCtrlClick: boolean) => {
@@ -447,6 +562,38 @@ export default function EnhancedFileExplorer() {
           handleDelete();
         },
       });
+
+      items.push({ separator: true } as ContextMenuItem);
+
+      items.push({
+        label: "Upload File",
+        icon: <Upload size={16} />,
+        onClick: () => setShowUploadModal(true),
+      });
+
+      items.push({
+        label: "New Folder",
+        icon: <FolderPlus size={16} />,
+        onClick: handleCreateFolder,
+      });
+
+      if (clipboard) {
+        items.push({ separator: true } as ContextMenuItem);
+        items.push({
+          label: `Paste ${clipboard.items.length} item(s)`,
+          icon: <Copy size={16} />,
+          shortcut: "Ctrl+V",
+          onClick: handlePaste,
+        });
+      }
+
+      items.push({ separator: true } as ContextMenuItem);
+
+      items.push({
+        label: "Refresh",
+        icon: <RefreshCcw size={16} />,
+        onClick: loadAllFiles,
+      });
     } else {
       items.push({
         label: "Upload File",
@@ -500,10 +647,14 @@ export default function EnhancedFileExplorer() {
         currentPath={currentPath}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        onNavigateHome={() => setCurrentPath("")}
+        onNavigateHome={() => handleNavigate("")}
         buckets={buckets}
         currentBucket={currentBucket}
         onBucketChange={handleBucketChange}
+        onBack={handleBack}
+        onForward={handleForward}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
       />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
