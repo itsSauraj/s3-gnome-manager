@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { FileMetadata } from "@/lib/types";
+import { CredentialsManager } from "@/lib/credentials";
 
 interface FileOperationsModalProps {
   operation: "copy" | "move" | "rename";
@@ -26,6 +27,18 @@ export default function FileOperationsModal({
   const [newName, setNewName] = useState("");
   const [processing, setProcessing] = useState(false);
   const [folders, setFolders] = useState<string[]>([]);
+
+  // Check if a key is a folder by seeing if any files exist under key/
+  const isFolder = (key: string) => {
+    const prefix = key.endsWith("/") ? key : `${key}/`;
+    return allFiles.some((f) => f.key.startsWith(prefix));
+  };
+
+  // Get all S3 object keys under a folder prefix
+  const getFolderContents = (folderKey: string): string[] => {
+    const prefix = folderKey.endsWith("/") ? folderKey : `${folderKey}/`;
+    return allFiles.filter((f) => f.key.startsWith(prefix)).map((f) => f.key);
+  };
 
   useEffect(() => {
     // Extract all unique folder paths
@@ -73,17 +86,42 @@ export default function FileOperationsModal({
     if (selectedItems.length !== 1) throw new Error("Can only rename one item");
 
     const oldKey = selectedItems[0];
-    const pathParts = oldKey.split("/");
-    pathParts[pathParts.length - 1] = newName;
-    const newKey = pathParts.join("/");
+    const headers = CredentialsManager.getHeaders();
+    const batchFiles: { source: string; destination: string }[] = [];
 
-    // Use batch move operation
+    if (isFolder(oldKey)) {
+      // Folder rename: move all files under old prefix to new prefix
+      const oldPrefix = oldKey.endsWith("/") ? oldKey : `${oldKey}/`;
+      const pathParts = oldKey.split("/");
+      pathParts[pathParts.length - 1] = newName;
+      const newPrefix = pathParts.join("/") + "/";
+
+      const contents = getFolderContents(oldKey);
+      for (const fileKey of contents) {
+        const relativePath = fileKey.substring(oldPrefix.length);
+        batchFiles.push({
+          source: fileKey,
+          destination: `${newPrefix}${relativePath}`,
+        });
+      }
+    } else {
+      // File rename: single move
+      const pathParts = oldKey.split("/");
+      pathParts[pathParts.length - 1] = newName;
+      const newKey = pathParts.join("/");
+      batchFiles.push({ source: oldKey, destination: newKey });
+    }
+
+    if (batchFiles.length === 0) {
+      throw new Error("No files to rename");
+    }
+
     const response = await fetch("/api/files/batch", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
         operation: "move",
-        files: [{ source: oldKey, destination: newKey }],
+        files: batchFiles,
       }),
     });
 
@@ -92,21 +130,39 @@ export default function FileOperationsModal({
 
   const handleCopyOrMove = async () => {
     const destPath = destinationPath ? (destinationPath.endsWith("/") ? destinationPath : `${destinationPath}/`) : "";
+    const headers = CredentialsManager.getHeaders();
+    const batchFiles: { source: string; destination: string }[] = [];
 
-    const files = selectedItems.map((source) => {
-      const fileName = source.split("/").pop() || "";
-      return {
-        source,
-        destination: `${destPath}${fileName}`,
-      };
-    });
+    for (const source of selectedItems) {
+      if (isFolder(source)) {
+        // Folder: expand all files and remap paths
+        const folderName = source.split("/").pop() || "";
+        const sourcePrefix = source.endsWith("/") ? source : `${source}/`;
+        const contents = getFolderContents(source);
+        for (const fileKey of contents) {
+          const relativePath = fileKey.substring(sourcePrefix.length);
+          batchFiles.push({
+            source: fileKey,
+            destination: `${destPath}${folderName}/${relativePath}`,
+          });
+        }
+      } else {
+        // File: simple copy/move
+        const fileName = source.split("/").pop() || "";
+        batchFiles.push({ source, destination: `${destPath}${fileName}` });
+      }
+    }
+
+    if (batchFiles.length === 0) {
+      throw new Error("No files to process");
+    }
 
     const response = await fetch("/api/files/batch", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
         operation,
-        files,
+        files: batchFiles,
       }),
     });
 

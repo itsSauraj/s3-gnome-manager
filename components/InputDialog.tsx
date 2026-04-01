@@ -50,32 +50,32 @@ export default function InputDialog({
           </button>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="p-4">
-          <p className="text-sm text-[var(--gnome-text-secondary)] mb-3">{message}</p>
-          <input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={placeholder}
-            className="w-full px-3 py-2 bg-[var(--gnome-bg-primary)] border border-[var(--gnome-border)] rounded text-sm text-[var(--gnome-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--gnome-accent-blue)]"
-          />
+        {/* Body + Footer inside form so Enter submits */}
+        <form onSubmit={handleSubmit}>
+          <div className="p-4">
+            <p className="text-sm text-[var(--gnome-text-secondary)] mb-3">{message}</p>
+            <input
+              ref={inputRef}
+              type="text"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={placeholder}
+              className="w-full px-3 py-2 bg-[var(--gnome-bg-primary)] border border-[var(--gnome-border)] rounded text-sm text-[var(--gnome-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--gnome-accent-blue)]"
+            />
+          </div>
+          <div className="flex justify-end gap-2 px-4 py-3 border-t border-[var(--gnome-border)]">
+            <button type="button" onClick={onCancel} className="gnome-button px-4 py-2">
+              {cancelText}
+            </button>
+            <button
+              type="submit"
+              disabled={!value.trim()}
+              className="gnome-button px-4 py-2 bg-[var(--gnome-accent-blue)] text-white disabled:opacity-50"
+            >
+              {confirmText}
+            </button>
+          </div>
         </form>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-[var(--gnome-border)]">
-          <button onClick={onCancel} className="gnome-button px-4 py-2">
-            {cancelText}
-          </button>
-          <button
-            onClick={() => value.trim() && onConfirm(value.trim())}
-            disabled={!value.trim()}
-            className="gnome-button px-4 py-2 bg-[var(--gnome-accent-blue)] text-white disabled:opacity-50"
-          >
-            {confirmText}
-          </button>
-        </div>
       </div>
     </div>
   );

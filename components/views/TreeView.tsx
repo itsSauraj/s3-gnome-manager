@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import MaterialFileIcon from "../MaterialFileIcons";
-import { formatFileSize, formatDate } from "@/lib/file-utils";
+import { formatFileSize } from "@/lib/file-utils";
+
+const formatDate = (date: Date) => new Date(date).toLocaleDateString();
 
 export interface TreeNode {
   key: string;

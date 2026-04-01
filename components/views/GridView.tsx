@@ -17,7 +17,8 @@ interface ClipboardData {
 interface GridViewProps {
   files: FileItem[];
   selectedItems: Set<string>;
-  onSelect: (key: string, isCtrl: boolean) => void;
+  focusedIndex: number;
+  onSelect: (key: string, isCtrl: boolean, index: number) => void;
   onDoubleClick: (item: FileItem) => void;
   onContextMenu: (e: React.MouseEvent, item?: FileItem) => void;
   clipboard?: ClipboardData | null;
@@ -26,6 +27,7 @@ interface GridViewProps {
 export default function GridView({
   files,
   selectedItems,
+  focusedIndex,
   onSelect,
   onDoubleClick,
   onContextMenu,
@@ -53,13 +55,15 @@ export default function GridView({
       className="grid gap-3 p-4"
       style={{ gridTemplateColumns: 'repeat(auto-fill, 96px)' }}
     >
-      {files.map((item) => {
+      {files.map((item, index) => {
         const isSelected = selectedItems.has(item.key);
         const isCut = isItemCut(item.key);
+        const isFocused = index === focusedIndex;
 
         return (
           <div
             key={item.key}
+            data-file-item={index}
             title={item.name}
             className={`
               flex flex-col items-center gap-2 p-2 rounded cursor-pointer
@@ -68,8 +72,9 @@ export default function GridView({
                 : 'hover:bg-[var(--gnome-bg-hover)]'
               }
               ${isCut ? 'opacity-50' : ''}
+              ${isFocused ? 'ring-2 ring-[var(--gnome-accent-blue)] ring-inset' : ''}
             `}
-            onClick={(e) => onSelect(item.key, e.ctrlKey || e.metaKey)}
+            onClick={(e) => onSelect(item.key, e.ctrlKey || e.metaKey, index)}
             onDoubleClick={() => onDoubleClick(item)}
             onContextMenu={(e) => {
               e.stopPropagation();

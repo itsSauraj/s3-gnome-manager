@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { FileMetadata } from "@/lib/types";
 import { formatFileSize } from "@/lib/file-utils";
@@ -9,7 +9,7 @@ import { NavigationHistoryManager } from "@/lib/navigation-history";
 import FileOperationsModal from "./FileOperationsModal";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { getFileIcon } from "./FileIcons";
-import HeaderBar from "./HeaderBar";
+import HeaderBar, { type SortField, type SortDirection } from "./HeaderBar";
 import EnhancedSidebar from "./EnhancedSidebar";
 import GridView from "./views/GridView";
 import ListView from "./views/ListView";
@@ -81,6 +81,10 @@ export default function EnhancedFileExplorer() {
     defaultValue?: string;
     onConfirm: (value: string) => void;
   } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const fileListRef = useRef<HTMLDivElement>(null);
   const isNavigatingRef = useRef(false);
   const uploadAbortControllers = useRef<Map<string, AbortController>>(new Map());
@@ -216,6 +220,7 @@ export default function EnhancedFileExplorer() {
   useEffect(() => {
     organizeFolders(allFiles, currentPath);
     setSelectedItems(new Set());
+    setFocusedIndex(-1);
   }, [currentPath, allFiles]);
 
   // Reload files when bucket changes
@@ -238,62 +243,365 @@ export default function EnhancedFileExplorer() {
     updateNavigationState();
   }, [currentPath, currentBucket]);
 
-  // Keyboard shortcuts
+  // Refs to always hold latest state - avoids stale closures in event handlers
+  const selectedItemsRef = useRef(selectedItems);
+  const clipboardRef = useRef(clipboard);
+  const filesRef = useRef(files);
+  const allFilesRef = useRef(allFiles);
+  const currentPathRef = useRef(currentPath);
+  const viewModeRef = useRef(viewMode);
+  const displayFilesRef = useRef<FileItem[]>([]);
+  const focusedIndexRef = useRef(focusedIndex);
+  selectedItemsRef.current = selectedItems;
+  clipboardRef.current = clipboard;
+  filesRef.current = files;
+  allFilesRef.current = allFiles;
+  currentPathRef.current = currentPath;
+  viewModeRef.current = viewMode;
+  focusedIndexRef.current = focusedIndex;
+
+  // Helper: check if a key is a folder by checking if any S3 objects exist under key/
+  const isFolderKey = (key: string) => {
+    const prefix = key.endsWith("/") ? key : `${key}/`;
+    return allFilesRef.current.some((f) => f.key.startsWith(prefix));
+  };
+
+  // Helper: expand folder keys into all contained S3 object keys
+  const expandKeys = (keys: string[]) => {
+    const expandedKeys: string[] = [];
+    for (const key of keys) {
+      if (isFolderKey(key)) {
+        const prefix = key.endsWith("/") ? key : `${key}/`;
+        const folderFiles = allFilesRef.current.filter((f) => f.key.startsWith(prefix));
+        expandedKeys.push(...folderFiles.map((f) => f.key));
+      } else {
+        expandedKeys.push(key);
+      }
+    }
+    return expandedKeys;
+  };
+
+  // File operation handlers - accept optional items for context menu use
+  const handleCopy = (items?: string[]) => {
+    const keys = items || Array.from(selectedItemsRef.current);
+    if (keys.length === 0) return;
+    setClipboard({ operation: "copy", items: keys });
+    showMessage("info", `${keys.length} item(s) copied`);
+  };
+
+  const handleCut = (items?: string[]) => {
+    const keys = items || Array.from(selectedItemsRef.current);
+    if (keys.length === 0) return;
+    setClipboard({ operation: "cut", items: keys });
+    showMessage("info", `${keys.length} item(s) cut`);
+  };
+
+  const handlePaste = async () => {
+    const cb = clipboardRef.current;
+    if (!cb) return;
+
+    try {
+      const destPath = currentPathRef.current ? (currentPathRef.current.endsWith("/") ? currentPathRef.current : `${currentPathRef.current}/`) : "";
+      const batchFiles: { source: string; destination: string }[] = [];
+
+      for (const source of cb.items) {
+        if (isFolderKey(source)) {
+          const folderName = source.split("/").pop() || "";
+          const prefix = source.endsWith("/") ? source : `${source}/`;
+          const folderFiles = allFilesRef.current.filter((f) => f.key.startsWith(prefix));
+          for (const file of folderFiles) {
+            const relativePath = file.key.substring(source.length);
+            batchFiles.push({
+              source: file.key,
+              destination: `${destPath}${folderName}${relativePath}`,
+            });
+          }
+        } else {
+          const fileName = source.split("/").pop() || "";
+          batchFiles.push({ source, destination: `${destPath}${fileName}` });
+        }
+      }
+
+      if (batchFiles.length === 0) {
+        showMessage("info", "No files to paste");
+        return;
+      }
+
+      const headers = CredentialsManager.getHeaders();
+      const response = await fetch("/api/files/batch", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operation: cb.operation === "cut" ? "move" : "copy",
+          files: batchFiles,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`${cb.operation} failed`);
+
+      showMessage("success", `${cb.operation === "cut" ? "Moved" : "Copied"} ${cb.items.length} item(s)`);
+      if (cb.operation === "cut") {
+        setClipboard(null);
+      }
+      await loadAllFiles();
+    } catch (error) {
+      showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
+    }
+  };
+
+  const handleDelete = (items?: string[]) => {
+    const keys = items || Array.from(selectedItemsRef.current);
+    if (keys.length === 0) return;
+
+    setConfirmDialog({
+      title: "Delete Items",
+      message: `Are you sure you want to delete ${keys.length} item(s)? This action cannot be undone.`,
+      type: "danger",
+      confirmText: "Delete",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const headers = CredentialsManager.getHeaders();
+          const keysToDelete = expandKeys(keys);
+
+          if (keysToDelete.length === 0) {
+            showMessage("info", "No files to delete");
+            return;
+          }
+
+          const response = await fetch("/api/files/batch", {
+            method: "POST",
+            headers: { ...headers, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              operation: "delete",
+              files: keysToDelete.map((key) => ({ key })),
+            }),
+          });
+
+          if (!response.ok) throw new Error("Delete failed");
+
+          showMessage("success", `Deleted ${keys.length} item(s)`);
+          setSelectedItems(new Set());
+          await loadAllFiles();
+        } catch (error) {
+          showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
+        }
+      },
+    });
+  };
+
+  // Helper: get grid column count from the DOM
+  const getGridColumns = () => {
+    const mainEl = document.querySelector('main');
+    if (!mainEl) return 1;
+    const gridEl = mainEl.querySelector('.grid');
+    if (!gridEl) return 1;
+    const style = window.getComputedStyle(gridEl);
+    const cols = style.gridTemplateColumns.split(' ').length;
+    return cols || 1;
+  };
+
+  // Helper: scroll focused item into view
+  const scrollFocusedIntoView = (index: number) => {
+    const mainEl = document.querySelector('main');
+    if (!mainEl) return;
+    const items = mainEl.querySelectorAll('[data-file-item]');
+    if (items[index]) {
+      items[index].scrollIntoView({ block: 'nearest' });
+    }
+  };
+
+  // Keyboard shortcuts - uses refs so handler always reads latest state
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in input
-      if ((e.target as HTMLElement).tagName === "INPUT") return;
+      const targetTag = (e.target as HTMLElement).tagName;
+      if (targetTag === "INPUT" || targetTag === "TEXTAREA") return;
 
       const isCtrl = e.ctrlKey || e.metaKey;
+      const isAlt = e.altKey;
+      const df = displayFilesRef.current;
+      const fi = focusedIndexRef.current;
 
-      // Ctrl+C - Copy
-      if (isCtrl && e.key === "c" && selectedItems.size > 0) {
+      // Alt+Left = Back, Alt+Right = Forward
+      if (isAlt && e.key === "ArrowLeft") {
         e.preventDefault();
-        handleCopy();
+        handleBack();
+        return;
+      }
+      if (isAlt && e.key === "ArrowRight") {
+        e.preventDefault();
+        handleForward();
+        return;
       }
 
-      // Ctrl+X - Cut
-      if (isCtrl && e.key === "x" && selectedItems.size > 0) {
+      // Backspace = go up one level
+      if (e.key === "Backspace") {
         e.preventDefault();
-        handleCut();
+        const cp = currentPathRef.current;
+        if (cp) {
+          const parts = cp.split("/");
+          parts.pop();
+          handleNavigate(parts.join("/"));
+        }
+        return;
       }
 
-      // Ctrl+V - Paste
-      if (isCtrl && e.key === "v" && clipboard) {
+      // Arrow key navigation
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        if (df.length === 0) return;
         e.preventDefault();
-        handlePaste();
+
+        let newIndex = fi;
+        const isGrid = viewModeRef.current === "grid";
+        const cols = isGrid ? getGridColumns() : 1;
+
+        if (e.key === "ArrowDown") {
+          newIndex = isGrid ? Math.min(fi + cols, df.length - 1) : Math.min(fi + 1, df.length - 1);
+        } else if (e.key === "ArrowUp") {
+          newIndex = isGrid ? Math.max(fi - cols, 0) : Math.max(fi - 1, 0);
+        } else if (e.key === "ArrowRight" && isGrid) {
+          newIndex = Math.min(fi + 1, df.length - 1);
+        } else if (e.key === "ArrowLeft" && isGrid) {
+          newIndex = Math.max(fi - 1, 0);
+        }
+
+        // If nothing was focused yet, start at 0
+        if (fi === -1) newIndex = 0;
+
+        setFocusedIndex(newIndex);
+        const item = df[newIndex];
+        if (item) {
+          if (isCtrl) {
+            // Ctrl+Arrow: move focus without changing selection
+          } else if (e.shiftKey) {
+            // Shift+Arrow: extend selection from anchor to newIndex
+            const start = Math.min(fi === -1 ? 0 : fi, newIndex);
+            const end = Math.max(fi === -1 ? 0 : fi, newIndex);
+            const newSel = new Set<string>();
+            for (let i = start; i <= end; i++) {
+              newSel.add(df[i].key);
+            }
+            setSelectedItems(newSel);
+          } else {
+            setSelectedItems(new Set([item.key]));
+          }
+          scrollFocusedIntoView(newIndex);
+        }
+        return;
       }
 
-      // Delete - Delete files
-      if (e.key === "Delete" && selectedItems.size > 0) {
-        e.preventDefault();
-        handleDelete();
+      // Enter = open folder / download file
+      if (e.key === "Enter") {
+        if (fi >= 0 && fi < df.length) {
+          e.preventDefault();
+          const item = df[fi];
+          if (item.type === "folder") {
+            handleFolderDoubleClick(item.name);
+          } else {
+            handleDownload(item.key);
+          }
+        }
+        return;
       }
 
-      // F2 - Rename
-      if (e.key === "F2" && selectedItems.size === 1) {
-        e.preventDefault();
-        setOperationType("rename");
-        setShowOperationsModal(true);
+      // Home = jump to first item
+      if (e.key === "Home") {
+        if (df.length > 0) {
+          e.preventDefault();
+          setFocusedIndex(0);
+          setSelectedItems(new Set([df[0].key]));
+          scrollFocusedIntoView(0);
+        }
+        return;
       }
 
-      // Ctrl+A - Select all
+      // End = jump to last item
+      if (e.key === "End") {
+        if (df.length > 0) {
+          e.preventDefault();
+          const last = df.length - 1;
+          setFocusedIndex(last);
+          setSelectedItems(new Set([df[last].key]));
+          scrollFocusedIntoView(last);
+        }
+        return;
+      }
+
+      // Space = toggle selection of focused item
+      if (e.key === " ") {
+        if (fi >= 0 && fi < df.length) {
+          e.preventDefault();
+          const item = df[fi];
+          const newSel = new Set(selectedItemsRef.current);
+          if (newSel.has(item.key)) {
+            newSel.delete(item.key);
+          } else {
+            newSel.add(item.key);
+          }
+          setSelectedItems(newSel);
+        }
+        return;
+      }
+
+      if (isCtrl && e.key === "c") {
+        if (selectedItemsRef.current.size > 0) {
+          e.preventDefault();
+          handleCopy();
+        }
+        return;
+      }
+
+      if (isCtrl && e.key === "x") {
+        if (selectedItemsRef.current.size > 0) {
+          e.preventDefault();
+          handleCut();
+        }
+        return;
+      }
+
+      if (isCtrl && e.key === "v") {
+        if (clipboardRef.current) {
+          e.preventDefault();
+          handlePaste();
+        }
+        return;
+      }
+
+      if (e.key === "Delete") {
+        if (selectedItemsRef.current.size > 0) {
+          e.preventDefault();
+          handleDelete();
+        }
+        return;
+      }
+
+      if (e.key === "F2") {
+        if (selectedItemsRef.current.size === 1) {
+          e.preventDefault();
+          setOperationType("rename");
+          setShowOperationsModal(true);
+        }
+        return;
+      }
+
       if (isCtrl && e.key === "a") {
         e.preventDefault();
-        const allKeys = new Set(files.map(f => f.key));
+        const allKeys = new Set(filesRef.current.map(f => f.key));
         setSelectedItems(allKeys);
+        return;
       }
 
-      // Escape - Clear selection
       if (e.key === "Escape") {
         setSelectedItems(new Set());
         setClipboard(null);
+        setFocusedIndex(-1);
+        return;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedItems, clipboard, files, currentPath]);
+  }, []); // Empty deps - refs handle freshness
 
   const handleNavigate = (path: string) => {
     if (!currentBucket) return;
@@ -364,7 +672,7 @@ export default function EnhancedFileExplorer() {
     handleNavigate(newPath);
   };
 
-  const handleFileSelect = (key: string, isCtrlClick: boolean) => {
+  const handleFileSelect = (key: string, isCtrlClick: boolean, index?: number) => {
     const newSelected = new Set(selectedItems);
     if (isCtrlClick) {
       if (newSelected.has(key)) {
@@ -377,53 +685,8 @@ export default function EnhancedFileExplorer() {
       newSelected.add(key);
     }
     setSelectedItems(newSelected);
-  };
-
-  const handleCopy = () => {
-    setClipboard({
-      operation: "copy",
-      items: Array.from(selectedItems),
-    });
-    showMessage("info", `${selectedItems.size} item(s) copied`);
-  };
-
-  const handleCut = () => {
-    setClipboard({
-      operation: "cut",
-      items: Array.from(selectedItems),
-    });
-    showMessage("info", `${selectedItems.size} item(s) cut`);
-  };
-
-  const handlePaste = async () => {
-    if (!clipboard) return;
-
-    try {
-      const destPath = currentPath ? (currentPath.endsWith("/") ? currentPath : `${currentPath}/`) : "";
-      const files = clipboard.items.map((source) => {
-        const fileName = source.split("/").pop() || "";
-        return { source, destination: `${destPath}${fileName}` };
-      });
-
-      const headers = CredentialsManager.getHeaders();
-      const response = await fetch("/api/files/batch", {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          operation: clipboard.operation === "cut" ? "move" : "copy",
-          files,
-        }),
-      });
-
-      if (!response.ok) throw new Error(`${clipboard.operation} failed`);
-
-      showMessage("success", `${clipboard.operation === "cut" ? "Moved" : "Copied"} ${clipboard.items.length} item(s)`);
-      if (clipboard.operation === "cut") {
-        setClipboard(null);
-      }
-      await loadAllFiles();
-    } catch (error) {
-      showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
+    if (index !== undefined) {
+      setFocusedIndex(index);
     }
   };
 
@@ -452,33 +715,6 @@ export default function EnhancedFileExplorer() {
     } catch (error) {
       showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
     }
-  };
-
-  const handleDelete = () => {
-    if (selectedItems.size === 0) return;
-
-    setConfirmDialog({
-      title: "Delete Items",
-      message: `Are you sure you want to delete ${selectedItems.size} item(s)? This action cannot be undone.`,
-      type: "danger",
-      confirmText: "Delete",
-      onConfirm: async () => {
-        setConfirmDialog(null);
-        try {
-          const headers = CredentialsManager.getHeaders();
-          const deletePromises = Array.from(selectedItems).map((key) =>
-            fetch(`/api/files?key=${encodeURIComponent(key)}`, { method: "DELETE", headers })
-          );
-
-          await Promise.all(deletePromises);
-          showMessage("success", `Deleted ${selectedItems.size} item(s)`);
-          setSelectedItems(new Set());
-          await loadAllFiles();
-        } catch (error) {
-          showMessage("error", `Error: ${error instanceof Error ? error.message : "Unknown"}`);
-        }
-      },
-    });
   };
 
   const handleCreateFolder = () => {
@@ -601,7 +837,9 @@ export default function EnhancedFileExplorer() {
     try {
       const formData = new FormData();
       formData.append("file", upload.file);
-      const key = currentPath ? `${currentPath}/${upload.file.name}` : upload.file.name;
+      // Use webkitRelativePath for folder uploads to preserve directory structure
+      const relativePath = (upload.file as any).webkitRelativePath || upload.file.name;
+      const key = currentPath ? `${currentPath}/${relativePath}` : relativePath;
       formData.append("key", key);
 
       const headers = CredentialsManager.getHeaders();
@@ -718,7 +956,7 @@ export default function EnhancedFileExplorer() {
         shortcut: "Ctrl+C",
         onClick: () => {
           setSelectedItems(new Set([item.key]));
-          handleCopy();
+          handleCopy([item.key]);
         },
       });
 
@@ -728,7 +966,7 @@ export default function EnhancedFileExplorer() {
         shortcut: "Ctrl+X",
         onClick: () => {
           setSelectedItems(new Set([item.key]));
-          handleCut();
+          handleCut([item.key]);
         },
       });
 
@@ -752,7 +990,7 @@ export default function EnhancedFileExplorer() {
         danger: true,
         onClick: () => {
           setSelectedItems(new Set([item.key]));
-          handleDelete();
+          handleDelete([item.key]);
         },
       });
 
@@ -834,6 +1072,48 @@ export default function EnhancedFileExplorer() {
     return clipboard?.operation === "cut" && clipboard.items.includes(key);
   };
 
+  // Filter and sort files
+  const displayFiles = (() => {
+    let result = [...files];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((f) => f.name.toLowerCase().includes(q));
+    }
+
+    // Sort - folders always first, then by selected field
+    result.sort((a, b) => {
+      if (a.type === "folder" && b.type !== "folder") return -1;
+      if (a.type !== "folder" && b.type === "folder") return 1;
+
+      const dir = sortDirection === "asc" ? 1 : -1;
+      switch (sortField) {
+        case "name":
+          return dir * a.name.localeCompare(b.name);
+        case "size":
+          return dir * ((a.size || 0) - (b.size || 0));
+        case "date":
+          return dir * (new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime());
+        case "type": {
+          const extA = a.name.includes(".") ? a.name.split(".").pop()! : "";
+          const extB = b.name.includes(".") ? b.name.split(".").pop()! : "";
+          return dir * extA.localeCompare(extB);
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  })();
+  displayFilesRef.current = displayFiles;
+
+  const handleSortChange = (field: SortField, direction: SortDirection) => {
+    setSortField(field);
+    setSortDirection(direction);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-[var(--gnome-bg-primary)]">
       <HeaderBar
@@ -848,6 +1128,25 @@ export default function EnhancedFileExplorer() {
         onForward={handleForward}
         canGoBack={canGoBack}
         canGoForward={canGoForward}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        onSortChange={handleSortChange}
+        onNewFolder={handleCreateFolder}
+        onUploadFile={() => setShowUploadModal(true)}
+        onUploadFolder={(folderFiles) => {
+          if (folderFiles.length > 0) {
+            setPendingFiles(folderFiles);
+            setShowUploadConfirm(true);
+          }
+        }}
+        onSelectAll={() => {
+          const allKeys = new Set(files.map(f => f.key));
+          setSelectedItems(allKeys);
+        }}
+        onRefresh={loadAllFiles}
+        onLogout={handleLogout}
       />
       <div className="flex-1 flex overflow-hidden">
         <EnhancedSidebar
@@ -885,15 +1184,16 @@ export default function EnhancedFileExplorer() {
             <div className="flex items-center justify-center h-full">
               <LoadingSpinner />
             </div>
-          ) : files.length === 0 ? (
+          ) : displayFiles.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">📂</div>
-              <div className="empty-text">Empty folder</div>
+              <div className="empty-icon">{searchQuery ? "🔍" : "📂"}</div>
+              <div className="empty-text">{searchQuery ? `No results for "${searchQuery}"` : "Empty folder"}</div>
             </div>
           ) : viewMode === "grid" ? (
             <GridView
-              files={files}
+              files={displayFiles}
               selectedItems={selectedItems}
+              focusedIndex={focusedIndex}
               onSelect={handleFileSelect}
               onDoubleClick={(item) => item.type === "folder" && handleFolderDoubleClick(item.name)}
               onContextMenu={handleContextMenu}
@@ -901,8 +1201,9 @@ export default function EnhancedFileExplorer() {
             />
           ) : (
             <ListView
-              files={files}
+              files={displayFiles}
               selectedItems={selectedItems}
+              focusedIndex={focusedIndex}
               onSelect={handleFileSelect}
               onDoubleClick={(item) => item.type === "folder" && handleFolderDoubleClick(item.name)}
               onContextMenu={handleContextMenu}

@@ -63,7 +63,7 @@ export default function UploadConfirmDialog({
                 <FileIcon size={16} className="text-[var(--gnome-text-secondary)]" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs text-[var(--gnome-text-primary)] truncate">
-                    {file.name}
+                    {(file as any).webkitRelativePath || file.name}
                   </div>
                   <div className="text-xs text-[var(--gnome-text-secondary)]">
                     {formatSize(file.size)}

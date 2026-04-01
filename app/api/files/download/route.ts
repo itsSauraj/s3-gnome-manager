@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     const filename = key.split("/").pop() || "download";
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": metadata.contentType || "application/octet-stream",
         "Content-Disposition": `attachment; filename="${filename}"`,
