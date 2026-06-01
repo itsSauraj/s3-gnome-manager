@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { R2FileManager } from "@/lib/r2-file-manager";
+import { createR2ClientFromRequest } from "@/lib/r2-client-dynamic";
+import { R2Operations } from "@/lib/r2-operations";
 
 // GET - Generate presigned download URL
 export async function GET(request: NextRequest) {
   try {
+    const { client, bucket } = createR2ClientFromRequest(request);
     const searchParams = request.nextUrl.searchParams;
     const key = searchParams.get("key");
     const expiresIn = parseInt(searchParams.get("expiresIn") || "3600");
@@ -16,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if file exists first
-    const exists = await R2FileManager.fileExists(key);
+    const exists = await R2Operations.fileExists(client, bucket, key);
     if (!exists) {
       return NextResponse.json(
         { error: "File not found" },
@@ -24,10 +26,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = await R2FileManager.getPresignedUrl({
-      key,
-      expiresIn,
-    });
+    const url = await R2Operations.getPresignedUrl(client, bucket, key, expiresIn);
 
     return NextResponse.json({
       url,
@@ -50,6 +49,7 @@ export async function GET(request: NextRequest) {
 // POST - Generate presigned upload URL
 export async function POST(request: NextRequest) {
   try {
+    const { client, bucket } = createR2ClientFromRequest(request);
     const body = await request.json();
     const { key, contentType, expiresIn = 3600 } = body;
 
@@ -60,11 +60,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const url = await R2FileManager.getPresignedUploadUrl({
+    const url = await R2Operations.getPresignedUploadUrl(
+      client,
+      bucket,
       key,
-      contentType,
       expiresIn,
-    });
+      contentType
+    );
 
     return NextResponse.json({
       url,

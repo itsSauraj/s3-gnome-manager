@@ -14,6 +14,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { FileMetadata, FileListResult } from "./types";
 
 export class R2Operations {
@@ -194,5 +195,44 @@ export class R2Operations {
       destinationKey
     );
     await this.deleteFile(client, sourceBucket, sourceKey);
+  }
+
+  static async fileExists(
+    client: S3Client,
+    bucket: string,
+    key: string
+  ): Promise<boolean> {
+    const metadata = await this.getFileMetadata(client, bucket, key);
+    return metadata !== null;
+  }
+
+  static async getPresignedUrl(
+    client: S3Client,
+    bucket: string,
+    key: string,
+    expiresIn: number = 3600
+  ): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    });
+
+    return getSignedUrl(client, command, { expiresIn });
+  }
+
+  static async getPresignedUploadUrl(
+    client: S3Client,
+    bucket: string,
+    key: string,
+    expiresIn: number = 3600,
+    contentType?: string
+  ): Promise<string> {
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    return getSignedUrl(client, command, { expiresIn });
   }
 }

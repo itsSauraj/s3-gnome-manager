@@ -2,17 +2,18 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { NextRequest } from "next/server";
 
 /**
- * Create an R2 client from request headers or environment variables
+ * Create an R2 client from credentials provided in the request headers.
+ * Credentials are supplied by the user (stored in the browser) and sent
+ * with each request — the app does not read any environment variables.
  */
 export function createR2ClientFromRequest(request: NextRequest): {
   client: S3Client;
   bucket: string;
 } {
-  // Try to get credentials from headers first
-  const endpoint = request.headers.get("X-R2-Endpoint") || process.env.R2_ENDPOINT;
-  const accessKeyId = request.headers.get("X-R2-Access-Key-Id") || process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = request.headers.get("X-R2-Secret-Access-Key") || process.env.R2_SECRET_ACCESS_KEY;
-  const bucket = request.headers.get("X-R2-Bucket") || process.env.R2_BUCKET || "";
+  const endpoint = request.headers.get("X-R2-Endpoint");
+  const accessKeyId = request.headers.get("X-R2-Access-Key-Id");
+  const secretAccessKey = request.headers.get("X-R2-Secret-Access-Key");
+  const bucket = request.headers.get("X-R2-Bucket") || "";
 
   if (!endpoint || !accessKeyId || !secretAccessKey) {
     throw new Error("R2 credentials not provided");

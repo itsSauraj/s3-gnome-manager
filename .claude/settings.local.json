@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npm uninstall:*)",
       "Bash(npm run dev:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(rmdir examples *)",
+      "Bash(ls examples *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }
